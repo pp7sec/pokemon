@@ -32,10 +32,21 @@ function escapeHtml(s) {
 }
 
 // ---------- List view ----------
+const STAT_FILTERS = [
+  { key: 'hp',      label: 'HP' },
+  { key: 'attack',  label: 'ATK' },
+  { key: 'defense', label: 'DEF' },
+  { key: 'spAtk',   label: 'Sp.ATK' },
+  { key: 'spDef',   label: 'Sp.DEF' },
+  { key: 'speed',   label: 'SPD' },
+  { key: 'total',   label: 'BST' },
+];
+
 let listState = {
   query: '', type: '', gen: 0, mega: '',
   sortCol: 'id', sortDir: 1,
   champions: [],
+  stats: Object.fromEntries(STAT_FILTERS.map(s => [s.key, { min: '', max: '' }])),
 };
 
 const COLS = [
@@ -84,6 +95,18 @@ async function renderList() {
           </div>
         </div>
         <div class="sidebar-section">
+          <div class="sidebar-label">Stat Filters</div>
+          ${STAT_FILTERS.map(s => `
+            <div class="stat-filter-row">
+              <span class="stat-filter-lbl">${s.label}</span>
+              <input class="stat-input" type="number" min="0" max="999" placeholder="Min"
+                data-stat="${s.key}" data-bound="min" value="${listState.stats[s.key].min}" />
+              <input class="stat-input" type="number" min="0" max="999" placeholder="Max"
+                data-stat="${s.key}" data-bound="max" value="${listState.stats[s.key].max}" />
+            </div>`).join('')}
+          <button class="clear-stats-btn" id="clearStats">Clear</button>
+        </div>
+        <div class="sidebar-section">
           <div id="countLabel" class="count-label"></div>
         </div>
       </aside>
@@ -122,6 +145,17 @@ async function renderList() {
     document.querySelectorAll('#megaBtns .mega-btn').forEach(b => b.classList.toggle('active', b.dataset.mega === listState.mega));
     paintTable();
   });
+  document.querySelector('.sidebar').addEventListener('input', e => {
+    const inp = e.target.closest('.stat-input');
+    if (!inp) return;
+    listState.stats[inp.dataset.stat][inp.dataset.bound] = inp.value;
+    paintTable();
+  });
+  document.getElementById('clearStats').addEventListener('click', () => {
+    listState.stats = Object.fromEntries(STAT_FILTERS.map(s => [s.key, { min: '', max: '' }]));
+    document.querySelectorAll('.stat-input').forEach(i => i.value = '');
+    paintTable();
+  });
   document.querySelector('#pokeTable thead').addEventListener('click', e => {
     const th = e.target.closest('th[data-col]');
     if (!th) return;
@@ -148,6 +182,12 @@ function paintTable() {
     }
     if (listState.gen > 0 && (c.id < genMin || c.id > genMax)) return false;
     if (listState.mega && c.is_mega !== listState.mega) return false;
+    for (const { key } of STAT_FILTERS) {
+      const f = listState.stats[key];
+      const val = c.stats?.[key] ?? 0;
+      if (f.min !== '' && val < Number(f.min)) return false;
+      if (f.max !== '' && val > Number(f.max)) return false;
+    }
     return true;
   });
 

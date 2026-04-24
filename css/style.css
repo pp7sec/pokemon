@@ -201,6 +201,28 @@ main { flex: 1; padding: 0; max-width: 100%; width: 100%; margin: 0 auto; overfl
 .type-dot.type-steel    { background: #B7B7CE; }
 .type-dot.type-fairy    { background: #D685AD; }
 
+.stat-filter-row {
+  display: grid; grid-template-columns: 48px 1fr 1fr; gap: 4px;
+  align-items: center; margin-bottom: 5px;
+}
+.stat-filter-lbl { font-size: 11px; color: var(--muted); font-weight: 600; text-transform: uppercase; }
+.stat-input {
+  width: 100%; padding: 4px 6px; border-radius: 6px; font-size: 12px;
+  background: var(--panel-2); color: var(--text);
+  border: 1px solid var(--border); outline: none;
+  -moz-appearance: textfield;
+}
+.stat-input::-webkit-outer-spin-button,
+.stat-input::-webkit-inner-spin-button { -webkit-appearance: none; }
+.stat-input:focus { border-color: var(--accent); }
+.clear-stats-btn {
+  margin-top: 6px; width: 100%; padding: 5px; border-radius: 6px;
+  font-size: 12px; font-weight: 600; cursor: pointer;
+  background: var(--panel-2); color: var(--muted);
+  border: 1px solid var(--border); transition: background .12s, color .12s;
+}
+.clear-stats-btn:hover { background: var(--border); color: var(--text); }
+
 .stat-num { text-align: right; font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .stat-num.muted { color: var(--muted); }
 

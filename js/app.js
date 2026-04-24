@@ -10,6 +10,29 @@ function typeBadge(type) {
   return `<span class="type-badge type-${t}">${t}</span>`;
 }
 
+const TARGET_LABEL = {
+  'selected-pokemon': 'Single',
+  'selected-pokemon-me-first': 'Single',
+  'all-opponents': 'All foes',
+  'random-opponent': 'Random foe',
+  'user': 'Self',
+  'user-and-allies': 'Self+allies',
+  'user-or-ally': 'Self/ally',
+  'all-allies': 'All allies',
+  'ally': 'Ally',
+  'all-other-pokemon': 'All others',
+  'all-pokemon': 'All',
+  'entire-field': 'Field',
+  'opponents-field': 'Foes\' side',
+  'users-field': 'Own side',
+  'fainting-pokemon': 'KO\'d',
+  'specific-move': '—',
+};
+
+function targetLabel(t) {
+  return TARGET_LABEL[t] || t || '—';
+}
+
 function escapeHtml(s) {
   return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 }
@@ -223,7 +246,7 @@ async function fillMoves(c) {
     panel.innerHTML = `<h3>Learnable Moves (${rows.length})</h3>
       <div class="moves-wrap">
         <table class="moves-table">
-          <thead><tr><th>Move</th><th>Type</th><th>Cat.</th><th>Power</th><th>Acc.</th><th>PP</th></tr></thead>
+          <thead><tr><th>Move</th><th>Type</th><th>Cat.</th><th>Power</th><th>Acc.</th><th>PP</th><th>Target</th></tr></thead>
           <tbody>
             ${rows.map(m => `<tr>
               <td><strong>${escapeHtml(m.move)}</strong></td>
@@ -232,6 +255,7 @@ async function fillMoves(c) {
               <td>${escapeHtml(m.power || '—')}</td>
               <td>${escapeHtml(m.accuracy || '—')}</td>
               <td>${escapeHtml(m.pp || '—')}</td>
+              <td>${escapeHtml(targetLabel(m.target))}</td>
             </tr>`).join('')}
           </tbody>
         </table>

@@ -1,44 +1,54 @@
-import { loadChampions, getChampion, getAbilities, loadMovesFor, loadTypeChart, computeMatchups, spriteUrl } from './data.js';
+import { loadChampions, getChampion, getAbilities, loadMovesFor, loadTypeChart, spriteUrl } from './data.js';
 
 const app = document.getElementById('app');
 
 const ALL_TYPES = ['normal','fire','water','electric','grass','ice','fighting','poison','ground','flying','psychic','bug','rock','ghost','dragon','dark','steel','fairy'];
 
+const GEN_RANGES = [[1,151],[152,251],[252,386],[387,493],[494,649],[650,721],[722,809],[810,905],[906,Infinity]];
+
+const TARGET_LABEL = {
+  'selected-pokemon':'Single','selected-pokemon-me-first':'Single',
+  'all-opponents':'All foes','random-opponent':'Random foe',
+  'user':'Self','user-and-allies':'Self+allies','user-or-ally':'Self/ally',
+  'all-allies':'All allies','ally':'Ally','all-other-pokemon':'All others',
+  'all-pokemon':'All','entire-field':'Field','opponents-field':"Foes' side",
+  'users-field':'Own side','fainting-pokemon':"KO'd",'specific-move':'—',
+};
+
+function targetLabel(t) { return TARGET_LABEL[t] || t || '—'; }
+
+function typeDot(type) {
+  const t = (type || '').toLowerCase();
+  if (!t) return '';
+  return `<span class="type-dot type-${t}" title="${t}"></span>`;
+}
 function typeBadge(type) {
   const t = (type || '').toLowerCase();
   if (!t) return '';
   return `<span class="type-badge type-${t}">${t}</span>`;
 }
-
-const TARGET_LABEL = {
-  'selected-pokemon': 'Single',
-  'selected-pokemon-me-first': 'Single',
-  'all-opponents': 'All foes',
-  'random-opponent': 'Random foe',
-  'user': 'Self',
-  'user-and-allies': 'Self+allies',
-  'user-or-ally': 'Self/ally',
-  'all-allies': 'All allies',
-  'ally': 'Ally',
-  'all-other-pokemon': 'All others',
-  'all-pokemon': 'All',
-  'entire-field': 'Field',
-  'opponents-field': 'Foes\' side',
-  'users-field': 'Own side',
-  'fainting-pokemon': 'KO\'d',
-  'specific-move': '—',
-};
-
-function targetLabel(t) {
-  return TARGET_LABEL[t] || t || '—';
-}
-
 function escapeHtml(s) {
   return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 }
 
 // ---------- List view ----------
-let listState = { query: '', type: '', champions: [] };
+let listState = {
+  query: '', type: '', gen: 0, mega: '',
+  sortCol: 'id', sortDir: 1,
+  champions: [],
+};
+
+const COLS = [
+  { key: 'id',     label: '#',       get: c => c.id },
+  { key: 'name',   label: 'Pokémon', get: c => c.name },
+  { key: 'hp',     label: 'HP',      get: c => c.stats?.hp ?? 0 },
+  { key: 'attack', label: 'ATK',     get: c => c.stats?.attack ?? 0 },
+  { key: 'defense',label: 'DEF',     get: c => c.stats?.defense ?? 0 },
+  { key: 'spAtk',  label: 'Sp.ATK',  get: c => c.stats?.spAtk ?? 0 },
+  { key: 'spDef',  label: 'Sp.DEF',  get: c => c.stats?.spDef ?? 0 },
+  { key: 'speed',  label: 'SPD',     get: c => c.stats?.speed ?? 0 },
+  { key: 'total',  label: 'BST',     get: c => c.stats?.total ?? 0 },
+];
 
 async function renderList() {
   app.innerHTML = `<div class="loading">Loading champions…</div>`;
@@ -46,58 +56,153 @@ async function renderList() {
   listState.champions = champions;
 
   app.innerHTML = `
-    <div class="toolbar">
-      <input class="search" id="q" placeholder="Search Pokémon by name…" value="${escapeHtml(listState.query)}" />
+    <div class="list-layout">
+      <aside class="sidebar">
+        <div class="sidebar-section">
+          <input class="search" id="q" placeholder="Search Pokémon…" value="${escapeHtml(listState.query)}" />
+        </div>
+        <div class="sidebar-section">
+          <div class="sidebar-label">Type</div>
+          <div class="type-filter-grid" id="typeFilters">
+            <button class="type-btn ${!listState.type ? 'active' : ''}" data-type="">All</button>
+            ${ALL_TYPES.map(t => `<button class="type-btn type-${t} ${listState.type === t ? 'active' : ''}" data-type="${t}">${t}</button>`).join('')}
+          </div>
+        </div>
+        <div class="sidebar-section">
+          <div class="sidebar-label">Generation</div>
+          <div class="gen-grid" id="genBtns">
+            <button class="gen-btn ${listState.gen === 0 ? 'active' : ''}" data-gen="0">All</button>
+            ${GEN_RANGES.map((_, i) => `<button class="gen-btn ${listState.gen === i+1 ? 'active' : ''}" data-gen="${i+1}">${i+1}</button>`).join('')}
+          </div>
+        </div>
+        <div class="sidebar-section">
+          <div class="sidebar-label">Mega Evolution</div>
+          <div class="mega-btns" id="megaBtns">
+            <button class="mega-btn ${listState.mega === '' ? 'active' : ''}" data-mega="">All</button>
+            <button class="mega-btn ${listState.mega === 'Yes' ? 'active' : ''}" data-mega="Yes">Yes</button>
+            <button class="mega-btn ${listState.mega === 'No' ? 'active' : ''}" data-mega="No">No</button>
+          </div>
+        </div>
+        <div class="sidebar-section">
+          <div id="countLabel" class="count-label"></div>
+        </div>
+      </aside>
+      <div class="table-wrap">
+        <table class="poke-table" id="pokeTable">
+          <thead>
+            <tr>
+              ${COLS.map(c => `<th data-col="${c.key}" class="${c.key === listState.sortCol ? (listState.sortDir > 0 ? 'sort-asc' : 'sort-desc') : ''}">${c.label}</th>`).join('')}
+            </tr>
+          </thead>
+          <tbody id="pokeBody"></tbody>
+        </table>
+      </div>
     </div>
-    <div class="type-filters" id="typeFilters">
-      <span class="type-chip ${listState.type === '' ? 'active' : ''}" data-type="">All</span>
-      ${ALL_TYPES.map(t => `<span class="type-chip type-${t} ${listState.type === t ? 'active' : ''}" data-type="${t}">${t}</span>`).join('')}
-    </div>
-    <div id="grid" class="grid"></div>
   `;
 
-  document.getElementById('q').addEventListener('input', e => {
-    listState.query = e.target.value;
-    paintGrid();
-  });
+  document.getElementById('q').addEventListener('input', e => { listState.query = e.target.value; paintTable(); });
   document.getElementById('typeFilters').addEventListener('click', e => {
-    const chip = e.target.closest('.type-chip');
-    if (!chip) return;
-    listState.type = chip.dataset.type;
-    document.querySelectorAll('#typeFilters .type-chip').forEach(c => c.classList.toggle('active', c.dataset.type === listState.type));
-    paintGrid();
+    const btn = e.target.closest('.type-btn');
+    if (!btn) return;
+    listState.type = btn.dataset.type;
+    document.querySelectorAll('#typeFilters .type-btn').forEach(b => b.classList.toggle('active', b.dataset.type === listState.type));
+    paintTable();
+  });
+  document.getElementById('genBtns').addEventListener('click', e => {
+    const btn = e.target.closest('.gen-btn');
+    if (!btn) return;
+    listState.gen = Number(btn.dataset.gen);
+    document.querySelectorAll('#genBtns .gen-btn').forEach(b => b.classList.toggle('active', Number(b.dataset.gen) === listState.gen));
+    paintTable();
+  });
+  document.getElementById('megaBtns').addEventListener('click', e => {
+    const btn = e.target.closest('.mega-btn');
+    if (!btn) return;
+    listState.mega = btn.dataset.mega;
+    document.querySelectorAll('#megaBtns .mega-btn').forEach(b => b.classList.toggle('active', b.dataset.mega === listState.mega));
+    paintTable();
+  });
+  document.querySelector('#pokeTable thead').addEventListener('click', e => {
+    const th = e.target.closest('th[data-col]');
+    if (!th) return;
+    const col = th.dataset.col;
+    if (listState.sortCol === col) listState.sortDir *= -1;
+    else { listState.sortCol = col; listState.sortDir = col === 'name' ? 1 : -1; }
+    document.querySelectorAll('#pokeTable th').forEach(t => t.className = '');
+    th.className = listState.sortDir > 0 ? 'sort-asc' : 'sort-desc';
+    paintTable();
   });
 
-  paintGrid();
+  paintTable();
 }
 
-function paintGrid() {
+function paintTable() {
   const q = listState.query.trim().toLowerCase();
-  const filtered = listState.champions.filter(c => {
+  const [genMin, genMax] = listState.gen > 0 ? GEN_RANGES[listState.gen - 1] : [0, Infinity];
+
+  let filtered = listState.champions.filter(c => {
     if (q && !c.name.toLowerCase().includes(q) && !String(c.id).includes(q)) return false;
     if (listState.type) {
       const t = listState.type;
       if (c.type1?.toLowerCase() !== t && c.type2?.toLowerCase() !== t) return false;
     }
+    if (listState.gen > 0 && (c.id < genMin || c.id > genMax)) return false;
+    if (listState.mega && c.is_mega !== listState.mega) return false;
     return true;
   });
 
-  const grid = document.getElementById('grid');
+  const col = COLS.find(c => c.key === listState.sortCol) || COLS[0];
+  filtered.sort((a, b) => {
+    const av = col.get(a), bv = col.get(b);
+    return typeof av === 'string' ? av.localeCompare(bv) * listState.sortDir : (av - bv) * listState.sortDir;
+  });
+
+  document.getElementById('countLabel').textContent = `${filtered.length} Pokémon`;
+
+  const body = document.getElementById('pokeBody');
   if (filtered.length === 0) {
-    grid.innerHTML = `<div class="empty">No Pokémon match your search.</div>`;
+    body.innerHTML = `<tr><td colspan="${COLS.length}" class="empty">No Pokémon match your search.</td></tr>`;
     return;
   }
-  grid.innerHTML = filtered.map(c => `
-    <a class="card" href="#/pokemon/${encodeURIComponent(c.slug)}">
-      ${c.is_mega === 'Yes' ? '<span class="mega-badge">MEGA</span>' : ''}
-      <span class="id">#${String(c.id).padStart(4, '0')}</span>
-      <div class="art"><img loading="lazy" src="${spriteUrl(c.id)}" alt="${escapeHtml(c.name)}" onerror="this.style.opacity=0.2" /></div>
-      <div class="meta">
-        <div class="name">${escapeHtml(c.name)}</div>
-        <div class="types">${typeBadge(c.type1)}${typeBadge(c.type2)}</div>
-      </div>
-    </a>
-  `).join('');
+
+  const statColor = v => v >= 130 ? '#22c55e' : v >= 100 ? '#84cc16' : v >= 70 ? '#eab308' : v >= 50 ? '#f97316' : '#ef4444';
+
+  body.innerHTML = filtered.map(c => {
+    const s = c.stats || {};
+    const numCell = (v) => v != null && v !== 0
+      ? `<td class="stat-num" style="color:${statColor(v)}">${v}</td>`
+      : `<td class="stat-num muted">—</td>`;
+    return `
+      <tr data-slug="${c.slug}">
+        <td class="num-col">#${String(c.id).padStart(4,'0')}</td>
+        <td class="name-col">
+          <img class="row-sprite" loading="lazy" src="${spriteUrl(c.id)}" alt="" onerror="this.style.opacity=0" />
+          <div class="name-info">
+            <span class="row-name">${escapeHtml(c.name)}</span>
+            <div class="row-types">${typeDot(c.type1)}${typeDot(c.type2)}</div>
+          </div>
+          ${c.is_mega === 'Yes' ? '<span class="mega-badge">M</span>' : ''}
+        </td>
+        ${numCell(s.hp)}
+        ${numCell(s.attack)}
+        ${numCell(s.defense)}
+        ${numCell(s.spAtk)}
+        ${numCell(s.spDef)}
+        ${numCell(s.speed)}
+        ${numCell(s.total)}
+      </tr>
+    `;
+  }).join('');
+
+  body.addEventListener('click', e => {
+    const tr = e.target.closest('tr[data-slug]');
+    if (tr) location.hash = `#/pokemon/${encodeURIComponent(tr.dataset.slug)}`;
+  }, { once: true });
+  // re-attach each paint
+  body.onclick = e => {
+    const tr = e.target.closest('tr[data-slug]');
+    if (tr) location.hash = `#/pokemon/${encodeURIComponent(tr.dataset.slug)}`;
+  };
 }
 
 // ---------- Detail view ----------
@@ -119,7 +224,7 @@ async function renderDetail(slug) {
     <a href="#/" class="back">← Back to champions</a>
     <div class="detail">
       <div class="hero" style="--hero-tint: ${typeTint(types[0])}">
-        <div class="hid">#${String(c.id).padStart(4, '0')}${c.is_mega === 'Yes' ? ' · MEGA' : (c.form ? ` · ${c.form}` : '')}</div>
+        <div class="hid">#${String(c.id).padStart(4,'0')}${c.is_mega === 'Yes' ? ' · MEGA' : (c.form ? ` · ${c.form}` : '')}</div>
         <div class="hname">${escapeHtml(c.name)}</div>
         <img class="hart" src="${spriteUrl(c.id)}" alt="${escapeHtml(c.name)}" onerror="this.style.opacity=0.3" />
         <div class="htypes">${typeBadge(c.type1)}${typeBadge(c.type2)}</div>
@@ -129,7 +234,6 @@ async function renderDetail(slug) {
           <span><strong>${s.total ?? '—'}</strong> BST</span>
         </div>
       </div>
-
       <div class="panel">
         <h3>Base Stats</h3>
         ${statRow('HP', s.hp, statFill, statColor)}
@@ -138,27 +242,14 @@ async function renderDetail(slug) {
         ${statRow('Sp. Atk', s.spAtk, statFill, statColor)}
         ${statRow('Sp. Def', s.spDef, statFill, statColor)}
         ${statRow('Speed', s.speed, statFill, statColor)}
-        ${statRow('Total', s.total, v => Math.round((v / 800) * 100), () => '#6366f1')}
+        ${statRow('Total', s.total, v => Math.round((v/800)*100), () => '#6366f1')}
       </div>
-
-      <div class="panel" id="abilitiesPanel">
-        <h3>Abilities</h3>
-        <div class="loading">Loading abilities…</div>
-      </div>
-
-      <div class="panel" id="matchupPanel">
-        <h3>Type Matchups (damage taken)</h3>
-        <div class="loading">Calculating…</div>
-      </div>
-
-      <div class="panel" id="movesPanel" style="grid-column: 1 / -1;">
-        <h3>Learnable Moves</h3>
-        <div class="loading">Loading moves…</div>
-      </div>
+      <div class="panel" id="abilitiesPanel"><h3>Abilities</h3><div class="loading">Loading…</div></div>
+      <div class="panel" id="matchupPanel"><h3>Type Matchups (damage taken)</h3><div class="loading">Calculating…</div></div>
+      <div class="panel" id="movesPanel" style="grid-column:1/-1"><h3>Learnable Moves</h3><div class="loading">Loading…</div></div>
     </div>
   `;
 
-  // Lazy-load the extra panels
   fillAbilities(c);
   fillMatchups(types);
   fillMoves(c);
@@ -166,113 +257,89 @@ async function renderDetail(slug) {
 
 function statRow(label, val, fill, color) {
   const v = val ?? 0;
-  return `
-    <div class="stat-row">
-      <div class="lbl">${label}</div>
-      <div class="num">${val ?? '—'}</div>
-      <div class="stat-bar"><div class="fill" style="width:${fill(v)}%; background:${color(v)}"></div></div>
-    </div>
-  `;
+  return `<div class="stat-row">
+    <div class="lbl">${label}</div><div class="num">${val ?? '—'}</div>
+    <div class="stat-bar"><div class="fill" style="width:${fill(v)}%;background:${color(v)}"></div></div>
+  </div>`;
 }
 
 async function fillAbilities(c) {
   const panel = document.getElementById('abilitiesPanel');
   try {
     const abilities = await getAbilities(c);
-    if (!abilities.length) {
-      panel.innerHTML = `<h3>Abilities</h3><div class="empty">No ability data.</div>`;
-      return;
-    }
+    if (!abilities.length) { panel.innerHTML = `<h3>Abilities</h3><div class="empty">No data.</div>`; return; }
     panel.innerHTML = `<h3>Abilities</h3>` + abilities.map(a => `
       <div class="ability">
         <span class="aname">${escapeHtml(a.name)}</span>${a.isHidden ? '<span class="ahidden">Hidden</span>' : ''}
         <div class="adesc">${escapeHtml(a.description || '')}</div>
-      </div>
-    `).join('');
-  } catch {
-    panel.innerHTML = `<h3>Abilities</h3><div class="empty">Failed to load.</div>`;
-  }
+      </div>`).join('');
+  } catch { panel.innerHTML = `<h3>Abilities</h3><div class="empty">Failed to load.</div>`; }
 }
 
 async function fillMatchups(types) {
   const panel = document.getElementById('matchupPanel');
   try {
     const chart = await loadTypeChart();
-    // defensive: what's super effective / resisted AGAINST this pokemon
     const defensive = {};
     ALL_TYPES.forEach(atk => {
       let mult = 1;
       types.forEach(def => {
-        const entry = chart[atk];
-        if (!entry) return;
-        if (entry.double_damage_to.includes(def)) mult *= 2;
-        else if (entry.half_damage_to.includes(def)) mult *= 0.5;
-        else if (entry.no_damage_to.includes(def)) mult *= 0;
+        const e = chart[atk];
+        if (!e) return;
+        if (e.double_damage_to.includes(def)) mult *= 2;
+        else if (e.half_damage_to.includes(def)) mult *= 0.5;
+        else if (e.no_damage_to.includes(def)) mult *= 0;
       });
       if (mult !== 1) defensive[atk] = mult;
     });
-    const groups = { '4×': [], '2×': [], '½×': [], '¼×': [], '0×': [] };
-    Object.entries(defensive).forEach(([t, m]) => {
-      if (m === 4) groups['4×'].push(t);
-      else if (m === 2) groups['2×'].push(t);
-      else if (m === 0.5) groups['½×'].push(t);
-      else if (m === 0.25) groups['¼×'].push(t);
-      else if (m === 0) groups['0×'].push(t);
+    const groups = { '4×':[], '2×':[], '½×':[], '¼×':[], '0×':[] };
+    Object.entries(defensive).forEach(([t,m]) => {
+      if (m===4) groups['4×'].push(t);
+      else if (m===2) groups['2×'].push(t);
+      else if (m===0.5) groups['½×'].push(t);
+      else if (m===0.25) groups['¼×'].push(t);
+      else if (m===0) groups['0×'].push(t);
     });
-    panel.innerHTML = `<h3>Type Matchups (damage taken)</h3>
-      <div class="matchup-grid">
-        ${Object.entries(groups).map(([k, arr]) => arr.length ? `
-          <div class="row"><span class="lab">${k}</span>${arr.map(typeBadge).join('')}</div>
-        ` : '').join('')}
-      </div>`;
-  } catch {
-    panel.innerHTML = `<h3>Type Matchups</h3><div class="empty">Failed to load.</div>`;
-  }
+    panel.innerHTML = `<h3>Type Matchups (damage taken)</h3><div class="matchup-grid">
+      ${Object.entries(groups).map(([k,arr]) => arr.length ? `<div class="row"><span class="lab">${k}</span>${arr.map(typeBadge).join('')}</div>` : '').join('')}
+    </div>`;
+  } catch { panel.innerHTML = `<h3>Type Matchups</h3><div class="empty">Failed to load.</div>`; }
 }
 
 async function fillMoves(c) {
   const panel = document.getElementById('movesPanel');
   try {
     const moves = await loadMovesFor(c);
-    if (!moves.length) {
-      panel.innerHTML = `<h3>Learnable Moves</h3><div class="empty">No move data.</div>`;
-      return;
-    }
-    // dedupe by move name
+    if (!moves.length) { panel.innerHTML = `<h3>Learnable Moves</h3><div class="empty">No data.</div>`; return; }
     const seen = new Map();
     moves.forEach(m => { if (!seen.has(m.move)) seen.set(m.move, m); });
-    const rows = [...seen.values()].sort((a, b) => a.move.localeCompare(b.move));
-
+    const rows = [...seen.values()].sort((a,b) => a.move.localeCompare(b.move));
     panel.innerHTML = `<h3>Learnable Moves (${rows.length})</h3>
       <div class="moves-wrap">
         <table class="moves-table">
           <thead><tr><th>Move</th><th>Type</th><th>Cat.</th><th>Power</th><th>Acc.</th><th>PP</th><th>Target</th></tr></thead>
-          <tbody>
-            ${rows.map(m => `<tr>
-              <td><strong>${escapeHtml(m.move)}</strong></td>
-              <td>${typeBadge(m.type)}</td>
-              <td class="cat-${(m.category||'').toLowerCase()}">${escapeHtml(m.category || '')}</td>
-              <td>${escapeHtml(m.power || '—')}</td>
-              <td>${escapeHtml(m.accuracy || '—')}</td>
-              <td>${escapeHtml(m.pp || '—')}</td>
-              <td>${escapeHtml(targetLabel(m.target))}</td>
-            </tr>`).join('')}
-          </tbody>
+          <tbody>${rows.map(m => `<tr>
+            <td><strong>${escapeHtml(m.move)}</strong></td>
+            <td>${typeBadge(m.type)}</td>
+            <td class="cat-${(m.category||'').toLowerCase()}">${escapeHtml(m.category||'')}</td>
+            <td>${escapeHtml(m.power||'—')}</td>
+            <td>${escapeHtml(m.accuracy||'—')}</td>
+            <td>${escapeHtml(m.pp||'—')}</td>
+            <td>${escapeHtml(targetLabel(m.target))}</td>
+          </tr>`).join('')}</tbody>
         </table>
       </div>`;
-  } catch {
-    panel.innerHTML = `<h3>Learnable Moves</h3><div class="empty">Failed to load.</div>`;
-  }
+  } catch { panel.innerHTML = `<h3>Learnable Moves</h3><div class="empty">Failed to load.</div>`; }
 }
 
 function typeTint(type) {
   const map = {
-    normal: 'rgba(168,167,122,.25)', fire: 'rgba(238,129,48,.3)', water: 'rgba(99,144,240,.3)',
-    electric: 'rgba(247,208,44,.3)', grass: 'rgba(122,199,76,.3)', ice: 'rgba(150,217,214,.3)',
-    fighting: 'rgba(194,46,40,.3)', poison: 'rgba(163,62,161,.3)', ground: 'rgba(226,191,101,.3)',
-    flying: 'rgba(169,143,243,.3)', psychic: 'rgba(249,85,135,.3)', bug: 'rgba(166,185,26,.3)',
-    rock: 'rgba(182,161,54,.3)', ghost: 'rgba(115,87,151,.3)', dragon: 'rgba(111,53,252,.3)',
-    dark: 'rgba(112,87,70,.3)', steel: 'rgba(183,183,206,.3)', fairy: 'rgba(214,133,173,.3)',
+    normal:'rgba(168,167,122,.25)',fire:'rgba(238,129,48,.3)',water:'rgba(99,144,240,.3)',
+    electric:'rgba(247,208,44,.3)',grass:'rgba(122,199,76,.3)',ice:'rgba(150,217,214,.3)',
+    fighting:'rgba(194,46,40,.3)',poison:'rgba(163,62,161,.3)',ground:'rgba(226,191,101,.3)',
+    flying:'rgba(169,143,243,.3)',psychic:'rgba(249,85,135,.3)',bug:'rgba(166,185,26,.3)',
+    rock:'rgba(182,161,54,.3)',ghost:'rgba(115,87,151,.3)',dragon:'rgba(111,53,252,.3)',
+    dark:'rgba(112,87,70,.3)',steel:'rgba(183,183,206,.3)',fairy:'rgba(214,133,173,.3)',
   };
   return map[type] || 'rgba(255,255,255,.08)';
 }

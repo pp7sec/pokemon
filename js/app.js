@@ -346,6 +346,51 @@ async function fillMatchups(types) {
   } catch { panel.innerHTML = `<h3>Type Matchups</h3><div class="empty">Failed to load.</div>`; }
 }
 
+// Move description cache (persists across detail page visits in same session)
+const moveDescCache = new Map();
+
+function moveSlug(name) {
+  return name.toLowerCase()
+    .replace(/[''′]/g, '')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-|-$/g, '');
+}
+
+async function fetchMoveDescs(names) {
+  const BATCH = 12;
+  for (let i = 0; i < names.length; i += BATCH) {
+    const batch = names.slice(i, i + BATCH).filter(n => !moveDescCache.has(n));
+    if (!batch.length) continue;
+    await Promise.all(batch.map(async name => {
+      try {
+        const res = await fetch(`https://pokeapi.co/api/v2/move/${moveSlug(name)}/`);
+        if (!res.ok) { moveDescCache.set(name, ''); return; }
+        const data = await res.json();
+        const entries = data.flavor_text_entries?.filter(e => e.language.name === 'en') || [];
+        moveDescCache.set(name, entries[entries.length - 1]?.flavor_text?.replace(/\f/g, ' ') || '');
+      } catch { moveDescCache.set(name, ''); }
+    }));
+    // Update visible cells after each batch
+    batch.forEach(name => {
+      const cell = document.querySelector(`.moves-table td[data-move="${CSS.escape(name)}"]`);
+      if (cell) cell.textContent = moveDescCache.get(name) || '—';
+    });
+  }
+}
+
+const MOVE_COLS = [
+  { key: 'move',     label: 'Move',        str: true },
+  { key: 'type',     label: 'Type',        str: true },
+  { key: 'category', label: 'Cat.',        str: true },
+  { key: 'power',    label: 'Power',       str: false },
+  { key: 'accuracy', label: 'Acc.',        str: false },
+  { key: 'pp',       label: 'PP',          str: false },
+  { key: 'target',   label: 'Target',      str: true },
+  { key: 'desc',     label: 'Description', str: true },
+];
+
+let movesSort = { col: 'move', dir: 1 };
+
 async function fillMoves(c) {
   const panel = document.getElementById('movesPanel');
   try {
@@ -353,23 +398,77 @@ async function fillMoves(c) {
     if (!moves.length) { panel.innerHTML = `<h3>Learnable Moves</h3><div class="empty">No data.</div>`; return; }
     const seen = new Map();
     moves.forEach(m => { if (!seen.has(m.move)) seen.set(m.move, m); });
-    const rows = [...seen.values()].sort((a,b) => a.move.localeCompare(b.move));
-    panel.innerHTML = `<h3>Learnable Moves (${rows.length})</h3>
-      <div class="moves-wrap">
-        <table class="moves-table">
-          <thead><tr><th>Move</th><th>Type</th><th>Cat.</th><th>Power</th><th>Acc.</th><th>PP</th><th>Target</th></tr></thead>
-          <tbody>${rows.map(m => `<tr>
+    movesSort = { col: 'move', dir: 1 };
+    renderMovesTable(panel, [...seen.values()]);
+    fetchMoveDescs([...seen.keys()]);
+  } catch { panel.innerHTML = `<h3>Learnable Moves</h3><div class="empty">Failed to load.</div>`; }
+}
+
+function renderMovesTable(panel, rows) {
+  const sortedRows = sortMoveRows(rows);
+
+  panel.innerHTML = `<h3>Learnable Moves (${rows.length})</h3>
+    <div class="moves-wrap">
+      <table class="moves-table" id="movesTable">
+        <thead><tr>
+          ${MOVE_COLS.map(c => `<th data-col="${c.key}" class="${c.key === movesSort.col ? (movesSort.dir > 0 ? 'sort-asc':'sort-desc') : ''}">${c.label}</th>`).join('')}
+        </tr></thead>
+        <tbody>${sortedRows.map(m => {
+          const numVal = v => (v && v !== '--') ? v : '—';
+          return `<tr
+            data-move="${escapeHtml(m.move)}"
+            data-type="${escapeHtml(m.type||'')}"
+            data-category="${escapeHtml(m.category||'')}"
+            data-power="${m.power||''}"
+            data-accuracy="${m.accuracy||''}"
+            data-pp="${m.pp||''}"
+            data-target="${escapeHtml(m.target||'')}">
             <td><strong>${escapeHtml(m.move)}</strong></td>
             <td>${typeBadge(m.type)}</td>
             <td class="cat-${(m.category||'').toLowerCase()}">${escapeHtml(m.category||'')}</td>
-            <td>${escapeHtml(m.power||'—')}</td>
-            <td>${escapeHtml(m.accuracy||'—')}</td>
-            <td>${escapeHtml(m.pp||'—')}</td>
+            <td>${numVal(m.power)}</td>
+            <td>${numVal(m.accuracy)}</td>
+            <td>${numVal(m.pp)}</td>
             <td>${escapeHtml(targetLabel(m.target))}</td>
-          </tr>`).join('')}</tbody>
-        </table>
-      </div>`;
-  } catch { panel.innerHTML = `<h3>Learnable Moves</h3><div class="empty">Failed to load.</div>`; }
+            <td data-move="${escapeHtml(m.move)}" class="move-desc">${moveDescCache.get(m.move) ?? '<span class="desc-loading">…</span>'}</td>
+          </tr>`;
+        }).join('')}</tbody>
+      </table>
+    </div>`;
+
+  // Sort on header click — re-sort existing rows in DOM
+  panel.querySelector('thead').addEventListener('click', e => {
+    const th = e.target.closest('th[data-col]');
+    if (!th) return;
+    const col = th.dataset.col;
+    if (movesSort.col === col) movesSort.dir *= -1;
+    else { movesSort.col = col; movesSort.dir = col === 'move' || col === 'type' || col === 'category' || col === 'target' || col === 'desc' ? 1 : -1; }
+    panel.querySelectorAll('thead th').forEach(t => t.className = '');
+    th.className = movesSort.dir > 0 ? 'sort-asc' : 'sort-desc';
+    const tbody = panel.querySelector('tbody');
+    const trs = [...tbody.querySelectorAll('tr')];
+    trs.sort((a, b) => {
+      let av = a.dataset[movesSort.col] ?? a.querySelector('[data-move]')?.textContent ?? '';
+      let bv = b.dataset[movesSort.col] ?? b.querySelector('[data-move]')?.textContent ?? '';
+      if (movesSort.col === 'desc') {
+        av = a.querySelector('td.move-desc')?.textContent || '';
+        bv = b.querySelector('td.move-desc')?.textContent || '';
+      }
+      const isNum = !isNaN(Number(av)) && !isNaN(Number(bv)) && av !== '' && bv !== '';
+      return isNum ? (Number(av) - Number(bv)) * movesSort.dir : av.localeCompare(bv) * movesSort.dir;
+    });
+    trs.forEach(tr => tbody.appendChild(tr));
+  });
+}
+
+function sortMoveRows(rows) {
+  return [...rows].sort((a, b) => {
+    const col = movesSort.col;
+    let av = col === 'desc' ? (moveDescCache.get(a.move) || '') : (a[col] || '');
+    let bv = col === 'desc' ? (moveDescCache.get(b.move) || '') : (b[col] || '');
+    const isNum = !isNaN(Number(av)) && !isNaN(Number(bv)) && av !== '' && bv !== '' && av !== '--' && bv !== '--';
+    return isNum ? (Number(av) - Number(bv)) * movesSort.dir : String(av).localeCompare(String(bv)) * movesSort.dir;
+  });
 }
 
 function typeTint(type) {

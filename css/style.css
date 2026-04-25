@@ -289,6 +289,12 @@ main { flex: 1; padding: 0; max-width: 100%; width: 100%; margin: 0 auto; overfl
 .cat-physical { color: #f97316; }
 .cat-special { color: #38bdf8; }
 .cat-status { color: #a1a1aa; }
+.move-desc { color: var(--muted); font-size: 12px; max-width: 320px; line-height: 1.4; }
+.desc-loading { color: var(--border); font-size: 11px; }
+.moves-table th { cursor: pointer; user-select: none; }
+.moves-table th:hover { color: var(--text); }
+.moves-table th.sort-asc::after { content: ' ↑'; color: var(--accent); }
+.moves-table th.sort-desc::after { content: ' ↓'; color: var(--accent); }
 
 .empty { padding: 40px; text-align: center; color: var(--muted); }
 

@@ -176,22 +176,66 @@ export async function getAbilities(champion) {
   return all.get(base) || all.get(base.replace(/\s+/g, '-')) || [];
 }
 
-export async function loadMovesFor(champion) {
+// Shared helper: strip mega/regional affixes → base lookup key
+export function champBaseKey(champion) {
+  return champion.name.toLowerCase()
+    .replace(/^mega\s+/, '')
+    .replace(/\s+(alolan|galarian|hisuian|paldean|partner|[xy])$/i, '')
+    .trim();
+}
+
+async function loadAllMoveRows() {
+  if (cache._moveRows) return cache._moveRows;
   if (!cache._movesText) {
     const res = await fetch('./all_moves.csv');
     cache._movesText = await res.text();
   }
-  const rows = (await import('./csv.js')).parseCSV(cache._movesText);
+  cache._moveRows = (await import('./csv.js')).parseCSV(cache._movesText);
+  return cache._moveRows;
+}
+
+export async function loadMovesFor(champion) {
+  const rows = await loadAllMoveRows();
+  const base = champBaseKey(champion);
   const keys = new Set([
     champion.name.toLowerCase().replace(/\s+/g, '-'),
     champion.name.toLowerCase().replace(/\s+/g, ''),
     champion.name.toLowerCase().split(' ').pop(),
-    champion.name.toLowerCase()
-      .replace(/^mega\s+/, '')
-      .replace(/\s+(alolan|galarian|hisuian|paldean|partner|[xy])$/i, ''),
+    base,
   ]);
   return rows.filter(r => keys.has(r.pokemon?.toLowerCase()));
 }
+
+export async function loadMoveIndex() {
+  if (cache.moveIndex) return cache.moveIndex;
+  const rows = await loadAllMoveRows();
+  const index = new Map(); // moveName → Set<pokemonKey>
+  rows.forEach(r => {
+    if (!r.move) return;
+    if (!index.has(r.move)) index.set(r.move, new Set());
+    index.get(r.move).add(r.pokemon?.toLowerCase());
+  });
+  cache.moveIndex = index;
+  cache.moveNames = [...index.keys()].sort((a, b) => a.localeCompare(b));
+  return index;
+}
+export function getMoveNames() { return cache.moveNames || []; }
+
+export async function loadAbilityIndex() {
+  if (cache.abilityIndex) return cache.abilityIndex;
+  const byPokemon = await loadAbilities();
+  const index = new Map(); // abilityName → Set<pokemonKey>
+  byPokemon.forEach((abilities, pokemonKey) => {
+    abilities.forEach(a => {
+      if (!index.has(a.name)) index.set(a.name, new Set());
+      index.get(a.name).add(pokemonKey);
+    });
+  });
+  cache.abilityIndex = index;
+  cache.abilityNames = [...index.keys()].sort((a, b) => a.localeCompare(b));
+  return index;
+}
+export function getAbilityNames() { return cache.abilityNames || []; }
 
 export async function loadTypeChart() {
   if (cache.typeChart) return cache.typeChart;

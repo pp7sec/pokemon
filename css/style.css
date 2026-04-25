@@ -202,6 +202,30 @@ main { flex: 1; padding: 0; max-width: 100%; width: 100%; margin: 0 auto; overfl
 .type-dot.type-steel    { background: #B7B7CE; }
 .type-dot.type-fairy    { background: #D685AD; }
 
+/* Combobox */
+.combobox { position: relative; }
+.combo-wrap { position: relative; display: flex; align-items: center; }
+.combo-wrap .search { padding-right: 28px; }
+.combo-clear {
+  position: absolute; right: 8px; background: none; border: none;
+  color: var(--muted); font-size: 16px; cursor: pointer; padding: 0;
+  line-height: 1;
+}
+.combo-clear:hover { color: var(--text); }
+.combo-list {
+  position: absolute; left: 0; right: 0; top: calc(100% + 3px); z-index: 200;
+  background: var(--panel-2); border: 1px solid var(--border);
+  border-radius: 8px; max-height: 220px; overflow-y: auto;
+  list-style: none; margin: 0; padding: 4px 0;
+  box-shadow: var(--shadow);
+}
+.combo-list li {
+  padding: 6px 12px; font-size: 13px; cursor: pointer;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.combo-list li:hover { background: var(--border); color: var(--text); }
+.combo-list .combo-loading { color: var(--muted); cursor: default; font-style: italic; }
+
 .stat-filter-row {
   display: grid; grid-template-columns: 48px 1fr 1fr; gap: 4px;
   align-items: center; margin-bottom: 5px;

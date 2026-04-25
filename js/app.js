@@ -1,4 +1,4 @@
-import { loadChampions, getChampion, getAbilities, loadMovesFor, loadTypeChart, spriteUrl, loadFormSpriteUrl } from './data.js';
+import { loadChampions, getChampion, getAbilities, loadMovesFor, loadTypeChart, spriteUrl, loadFormSpriteUrl, loadMoveIndex, getMoveNames, loadAbilityIndex, getAbilityNames, champBaseKey } from './data.js';
 
 const app = document.getElementById('app');
 
@@ -31,6 +31,77 @@ function escapeHtml(s) {
   return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 }
 
+// ---------- Combobox helper ----------
+function setupCombo(key, inputId, listId, getNames, loadIndex, onSelect) {
+  const input = document.getElementById(inputId);
+  const list = document.getElementById(listId);
+  if (!input || !list) return;
+
+  let loaded = false;
+  let allNames = [];
+
+  function showList(names) {
+    list.innerHTML = names.slice(0, 150).map(n =>
+      `<li data-value="${escapeHtml(n)}">${escapeHtml(n)}</li>`
+    ).join('');
+    list.hidden = names.length === 0;
+  }
+
+  async function open() {
+    if (!loaded) {
+      list.innerHTML = '<li class="combo-loading">Loading…</li>';
+      list.hidden = false;
+      await loadIndex();
+      allNames = getNames();
+      loaded = true;
+    }
+    const q = input.value.trim().toLowerCase();
+    showList(q ? allNames.filter(n => n.toLowerCase().includes(q)) : allNames);
+  }
+
+  input.addEventListener('focus', open);
+  input.addEventListener('input', async () => {
+    if (!loaded) await loadIndex().then(() => { allNames = getNames(); loaded = true; });
+    const q = input.value.trim().toLowerCase();
+    showList(q ? allNames.filter(n => n.toLowerCase().includes(q)) : allNames);
+    // Clear selection when typing
+    if (listState[key] && input.value !== listState[key]) {
+      listState[key] = '';
+      paintTable();
+    }
+  });
+
+  list.addEventListener('mousedown', e => {
+    const li = e.target.closest('li[data-value]');
+    if (!li) return;
+    e.preventDefault();
+    const val = li.dataset.value;
+    input.value = val;
+    list.hidden = true;
+    // Add/update clear button
+    const wrap = input.parentElement;
+    wrap.querySelector('.combo-clear')?.remove();
+    const btn = document.createElement('button');
+    btn.className = 'combo-clear';
+    btn.dataset.target = key;
+    btn.textContent = '×';
+    wrap.appendChild(btn);
+    onSelect(val);
+  });
+
+  document.addEventListener('click', e => {
+    if (!e.target.closest(`#${key}Combo`)) list.hidden = true;
+  }, { capture: true });
+
+  input.addEventListener('keydown', e => {
+    if (e.key === 'Escape') { list.hidden = true; input.blur(); }
+    if (e.key === 'Enter') {
+      const first = list.querySelector('li[data-value]');
+      if (first) first.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
+    }
+  });
+}
+
 // ---------- List view ----------
 const STAT_FILTERS = [
   { key: 'hp',      label: 'HP' },
@@ -42,8 +113,13 @@ const STAT_FILTERS = [
   { key: 'total',   label: 'BST' },
 ];
 
+// Cached indexes for filter
+let _moveIndex = null;
+let _abilityIndex = null;
+
 let listState = {
   query: '', type: '', gen: 0, mega: '',
+  move: '', ability: '',
   sortCol: 'id', sortDir: 1,
   champions: [],
   stats: Object.fromEntries(STAT_FILTERS.map(s => [s.key, { min: '', max: '' }])),
@@ -92,6 +168,26 @@ async function renderList() {
             <button class="mega-btn ${listState.mega === '' ? 'active' : ''}" data-mega="">All</button>
             <button class="mega-btn ${listState.mega === 'Yes' ? 'active' : ''}" data-mega="Yes">Yes</button>
             <button class="mega-btn ${listState.mega === 'No' ? 'active' : ''}" data-mega="No">No</button>
+          </div>
+        </div>
+        <div class="sidebar-section">
+          <div class="sidebar-label">Move</div>
+          <div class="combobox" id="moveCombo">
+            <div class="combo-wrap">
+              <input class="search combo-input" id="moveInput" placeholder="Filter by move…" autocomplete="off" value="${escapeHtml(listState.move)}" />
+              ${listState.move ? `<button class="combo-clear" data-target="move">×</button>` : ''}
+            </div>
+            <ul class="combo-list" id="moveList" hidden></ul>
+          </div>
+        </div>
+        <div class="sidebar-section">
+          <div class="sidebar-label">Ability</div>
+          <div class="combobox" id="abilityCombo">
+            <div class="combo-wrap">
+              <input class="search combo-input" id="abilityInput" placeholder="Filter by ability…" autocomplete="off" value="${escapeHtml(listState.ability)}" />
+              ${listState.ability ? `<button class="combo-clear" data-target="ability">×</button>` : ''}
+            </div>
+            <ul class="combo-list" id="abilityList" hidden></ul>
           </div>
         </div>
         <div class="sidebar-section">
@@ -145,6 +241,25 @@ async function renderList() {
     document.querySelectorAll('#megaBtns .mega-btn').forEach(b => b.classList.toggle('active', b.dataset.mega === listState.mega));
     paintTable();
   });
+  // Combobox setup
+  setupCombo('move', 'moveInput', 'moveList', getMoveNames,
+    () => loadMoveIndex().then(idx => { _moveIndex = idx; }), v => { listState.move = v; paintTable(); });
+  setupCombo('ability', 'abilityInput', 'abilityList', getAbilityNames,
+    () => loadAbilityIndex().then(idx => { _abilityIndex = idx; }), v => { listState.ability = v; paintTable(); });
+
+  // Load ability names eagerly (small file); move names lazily on first open
+  loadAbilityIndex().then(idx => { _abilityIndex = idx; });
+
+  document.querySelector('.sidebar').addEventListener('click', e => {
+    const btn = e.target.closest('.combo-clear');
+    if (!btn) return;
+    const key = btn.dataset.target; // 'move' or 'ability'
+    listState[key] = '';
+    document.getElementById(key + 'Input').value = '';
+    btn.remove();
+    paintTable();
+  });
+
   document.querySelector('.sidebar').addEventListener('input', e => {
     const inp = e.target.closest('.stat-input');
     if (!inp) return;
@@ -187,6 +302,16 @@ function paintTable() {
       const val = c.stats?.[key] ?? 0;
       if (f.min !== '' && val < Number(f.min)) return false;
       if (f.max !== '' && val > Number(f.max)) return false;
+    }
+    if (listState.move && _moveIndex) {
+      const set = _moveIndex.get(listState.move);
+      const base = champBaseKey(c);
+      if (!set || !set.has(base)) return false;
+    }
+    if (listState.ability && _abilityIndex) {
+      const set = _abilityIndex.get(listState.ability);
+      const base = champBaseKey(c);
+      if (!set || !set.has(base)) return false;
     }
     return true;
   });

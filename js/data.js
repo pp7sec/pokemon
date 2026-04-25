@@ -15,6 +15,55 @@ export function spriteUrl(id) {
   return `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/${id}.png`;
 }
 
+const REGIONAL_SUFFIX = { alolan:'alolan', galarian:'galar', hisuian:'hisui', paldean:'paldea' };
+const SLUG_OVERRIDES = { 'tauros-paldea':'tauros-paldea-combat' };
+
+function champToPokeSlug({ name, is_mega, form }) {
+  if (is_mega !== 'Yes' && !form) return null;
+  const n = name.toLowerCase();
+  if (is_mega === 'Yes') {
+    const base = n.replace(/^mega /, '');
+    if (/[xy]$/.test(base) && base.slice(-2, -1) === ' ') {
+      const letter = base.slice(-1);
+      return `${base.slice(0, -2).replace(/\s+/g, '-')}-mega-${letter}`;
+    }
+    return `${base.replace(/\s+/g, '-')}-mega`;
+  }
+  if (form) {
+    const formSlug = REGIONAL_SUFFIX[form.toLowerCase()];
+    if (!formSlug) return null;
+    const baseName = n.replace(new RegExp(`\\s+${form.toLowerCase()}$`), '').replace(/\s+/g, '-');
+    const slug = `${baseName}-${formSlug}`;
+    return SLUG_OVERRIDES[slug] || slug;
+  }
+  return null;
+}
+
+const formSpriteCache = new Map();
+
+export async function loadFormSpriteUrl(champion) {
+  const key = champion.slug;
+  if (formSpriteCache.has(key)) return formSpriteCache.get(key);
+  const slug = champToPokeSlug(champion);
+  if (!slug) {
+    const url = spriteUrl(champion.id);
+    formSpriteCache.set(key, url);
+    return url;
+  }
+  try {
+    const res = await fetch(`https://pokeapi.co/api/v2/pokemon/${slug}/`);
+    if (!res.ok) throw new Error();
+    const data = await res.json();
+    const url = data.sprites?.other?.['official-artwork']?.front_default || spriteUrl(champion.id);
+    formSpriteCache.set(key, url);
+    return url;
+  } catch {
+    const url = spriteUrl(champion.id);
+    formSpriteCache.set(key, url);
+    return url;
+  }
+}
+
 function matchStats(statsRows, champion) {
   const { id, name, is_mega, form } = champion;
   const sameId = statsRows.filter(r => r.ID === String(id));

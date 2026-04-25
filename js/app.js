@@ -1,4 +1,4 @@
-import { loadChampions, getChampion, getAbilities, loadMovesFor, loadTypeChart, spriteUrl } from './data.js';
+import { loadChampions, getChampion, getAbilities, loadMovesFor, loadTypeChart, spriteUrl, loadFormSpriteUrl } from './data.js';
 
 const app = document.getElementById('app');
 
@@ -243,6 +243,18 @@ function paintTable() {
     const tr = e.target.closest('tr[data-slug]');
     if (tr) location.hash = `#/pokemon/${encodeURIComponent(tr.dataset.slug)}`;
   };
+
+  // Lazy-load correct form sprites for mega/regional pokemon
+  const formChamps = filtered.filter(c => c.is_mega === 'Yes' || c.form);
+  (async () => {
+    for (let i = 0; i < formChamps.length; i += 10) {
+      await Promise.all(formChamps.slice(i, i + 10).map(async c => {
+        const url = await loadFormSpriteUrl(c);
+        const img = body.querySelector(`tr[data-slug="${CSS.escape(c.slug)}"] .row-sprite`);
+        if (img && url) img.src = url;
+      }));
+    }
+  })();
 }
 
 // ---------- Detail view ----------
@@ -289,6 +301,12 @@ async function renderDetail(slug) {
       <div class="panel" id="movesPanel" style="grid-column:1/-1"><h3>Learnable Moves</h3><div class="loading">Loading…</div></div>
     </div>
   `;
+
+  // Update hero sprite with correct form artwork (mega/regional)
+  loadFormSpriteUrl(c).then(url => {
+    const img = document.querySelector('.hart');
+    if (img) img.src = url;
+  });
 
   fillAbilities(c);
   fillMatchups(types);

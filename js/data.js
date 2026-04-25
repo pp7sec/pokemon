@@ -14,6 +14,9 @@ export function slugify(s) {
 export function spriteUrl(id) {
   return `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/${id}.png`;
 }
+export function shinyUrl(id) {
+  return `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/shiny/${id}.png`;
+}
 
 const REGIONAL_SUFFIX = { alolan:'alolan', galarian:'galar', hisuian:'hisui', paldean:'paldea' };
 const SLUG_OVERRIDES = { 'tauros-paldea':'tauros-paldea-combat' };
@@ -39,29 +42,33 @@ function champToPokeSlug({ name, is_mega, form }) {
   return null;
 }
 
-const formSpriteCache = new Map();
+const formSpriteCache = new Map(); // key → { normal, shiny }
 
-export async function loadFormSpriteUrl(champion) {
+export async function loadFormSpriteUrls(champion) {
   const key = champion.slug;
   if (formSpriteCache.has(key)) return formSpriteCache.get(key);
   const slug = champToPokeSlug(champion);
-  if (!slug) {
-    const url = spriteUrl(champion.id);
-    formSpriteCache.set(key, url);
-    return url;
-  }
+  const fallback = { normal: spriteUrl(champion.id), shiny: shinyUrl(champion.id) };
+  if (!slug) { formSpriteCache.set(key, fallback); return fallback; }
   try {
     const res = await fetch(`https://pokeapi.co/api/v2/pokemon/${slug}/`);
     if (!res.ok) throw new Error();
     const data = await res.json();
-    const url = data.sprites?.other?.['official-artwork']?.front_default || spriteUrl(champion.id);
-    formSpriteCache.set(key, url);
-    return url;
+    const aw = data.sprites?.other?.['official-artwork'];
+    const urls = {
+      normal: aw?.front_default || fallback.normal,
+      shiny:  aw?.front_shiny  || fallback.shiny,
+    };
+    formSpriteCache.set(key, urls);
+    return urls;
   } catch {
-    const url = spriteUrl(champion.id);
-    formSpriteCache.set(key, url);
-    return url;
+    formSpriteCache.set(key, fallback);
+    return fallback;
   }
+}
+
+export async function loadFormSpriteUrl(champion) {
+  return (await loadFormSpriteUrls(champion)).normal;
 }
 
 function matchStats(statsRows, champion) {

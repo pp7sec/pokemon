@@ -1,4 +1,4 @@
-import { loadChampions, getChampion, getAbilities, loadMovesFor, loadTypeChart, spriteUrl, loadFormSpriteUrl, loadMoveIndex, getMoveNames, loadAbilityIndex, getAbilityNames, champBaseKey } from './data.js';
+import { loadChampions, getChampion, getAbilities, loadMovesFor, loadTypeChart, spriteUrl, shinyUrl, loadFormSpriteUrl, loadFormSpriteUrls, loadMoveIndex, getMoveNames, loadAbilityIndex, getAbilityNames, champBaseKey } from './data.js';
 
 const app = document.getElementById('app');
 
@@ -407,10 +407,19 @@ async function renderDetail(slug) {
   app.innerHTML = `
     <a href="#/" class="back">← Back to champions</a>
     <div class="detail">
-      <div class="hero" style="--hero-tint: ${typeTint(types[0])}">
+      <div class="hero">
         <div class="hid">#${String(c.id).padStart(4,'0')}${c.is_mega === 'Yes' ? ' · MEGA' : (c.form ? ` · ${c.form}` : '')}</div>
         <div class="hname">${escapeHtml(c.name)}</div>
-        <img class="hart" src="${spriteUrl(c.id)}" alt="${escapeHtml(c.name)}" onerror="this.style.opacity=0.3" />
+        <div class="hart-pair">
+          <div class="hart-slot">
+            <img class="hart" src="${spriteUrl(c.id)}" alt="${escapeHtml(c.name)}" onerror="this.style.opacity=0.3" />
+            <div class="hart-label">Normal</div>
+          </div>
+          <div class="hart-slot">
+            <img class="hart-shiny" src="${shinyUrl(c.id)}" alt="${escapeHtml(c.name)} Shiny" onerror="this.style.opacity=0.3" />
+            <div class="hart-label shiny-label">✨ Shiny</div>
+          </div>
+        </div>
         <div class="htypes">${typeBadge(c.type1)}${typeBadge(c.type2)}</div>
         <div class="meta-row">
           <span><strong>${c.height ?? '—'}</strong> m</span>
@@ -434,10 +443,12 @@ async function renderDetail(slug) {
     </div>
   `;
 
-  // Update hero sprite with correct form artwork (mega/regional)
-  loadFormSpriteUrl(c).then(url => {
+  // Update hero sprites with correct form artwork (mega/regional)
+  loadFormSpriteUrls(c).then(({ normal, shiny }) => {
     const img = document.querySelector('.hart');
-    if (img) img.src = url;
+    if (img) img.src = normal;
+    const imgShiny = document.querySelector('.hart-shiny');
+    if (imgShiny) imgShiny.src = shiny;
   });
 
   fillAbilities(c);

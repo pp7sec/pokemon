@@ -507,8 +507,9 @@ async function fillMatchups(types) {
   } catch { panel.innerHTML = `<h3>Type Matchups</h3><div class="empty">Failed to load.</div>`; }
 }
 
-// Move description cache (persists across detail page visits in same session)
+// Move data caches (persist across detail page visits in same session)
 const moveDescCache = new Map();
+const movePriorityCache = new Map();
 
 function moveSlug(name) {
   return name.toLowerCase()
@@ -517,7 +518,14 @@ function moveSlug(name) {
     .replace(/^-|-$/g, '');
 }
 
-async function fetchMoveDescs(names) {
+function priorityHtml(p) {
+  if (p === null || p === undefined) return '<span class="desc-loading">…</span>';
+  if (p > 0) return `<span class="prio-pos">+${p}</span>`;
+  if (p < 0) return `<span class="prio-neg">${p}</span>`;
+  return `<span class="prio-zero">0</span>`;
+}
+
+async function fetchMoveData(names) {
   const BATCH = 12;
   for (let i = 0; i < names.length; i += BATCH) {
     const batch = names.slice(i, i + BATCH).filter(n => !moveDescCache.has(n));
@@ -525,16 +533,24 @@ async function fetchMoveDescs(names) {
     await Promise.all(batch.map(async name => {
       try {
         const res = await fetch(`https://pokeapi.co/api/v2/move/${moveSlug(name)}/`);
-        if (!res.ok) { moveDescCache.set(name, ''); return; }
+        if (!res.ok) { moveDescCache.set(name, ''); movePriorityCache.set(name, null); return; }
         const data = await res.json();
         const entries = data.flavor_text_entries?.filter(e => e.language.name === 'en') || [];
         moveDescCache.set(name, entries[entries.length - 1]?.flavor_text?.replace(/\f/g, ' ') || '');
-      } catch { moveDescCache.set(name, ''); }
+        movePriorityCache.set(name, data.priority ?? 0);
+      } catch { moveDescCache.set(name, ''); movePriorityCache.set(name, null); }
     }));
     // Update visible cells after each batch
     batch.forEach(name => {
-      const cell = document.querySelector(`.moves-table td[data-move="${CSS.escape(name)}"]`);
-      if (cell) cell.textContent = moveDescCache.get(name) || '—';
+      const descCell = document.querySelector(`.moves-table td.move-desc[data-move="${CSS.escape(name)}"]`);
+      if (descCell) descCell.textContent = moveDescCache.get(name) || '—';
+      const row = document.querySelector(`.moves-table tr[data-move="${CSS.escape(name)}"]`);
+      if (row) {
+        const p = movePriorityCache.get(name);
+        row.dataset.priority = p ?? '';
+        const prioCell = row.querySelector('td.move-priority');
+        if (prioCell) prioCell.innerHTML = priorityHtml(p);
+      }
     });
   }
 }
@@ -546,6 +562,7 @@ const MOVE_COLS = [
   { key: 'power',    label: 'Power',       str: false },
   { key: 'accuracy', label: 'Acc.',        str: false },
   { key: 'pp',       label: 'PP',          str: false },
+  { key: 'priority', label: 'Prio.',       str: false },
   { key: 'target',   label: 'Target',      str: true },
   { key: 'desc',     label: 'Description', str: true },
 ];
@@ -561,7 +578,7 @@ async function fillMoves(c) {
     moves.forEach(m => { if (!seen.has(m.move)) seen.set(m.move, m); });
     movesSort = { col: 'move', dir: 1 };
     renderMovesTable(panel, [...seen.values()]);
-    fetchMoveDescs([...seen.keys()]);
+    fetchMoveData([...seen.keys()]);
   } catch { panel.innerHTML = `<h3>Learnable Moves</h3><div class="empty">Failed to load.</div>`; }
 }
 
@@ -576,6 +593,7 @@ function renderMovesTable(panel, rows) {
         </tr></thead>
         <tbody>${sortedRows.map(m => {
           const numVal = v => (v && v !== '--') ? v : '—';
+          const prio = movePriorityCache.has(m.move) ? movePriorityCache.get(m.move) : null;
           return `<tr
             data-move="${escapeHtml(m.move)}"
             data-type="${escapeHtml(m.type||'')}"
@@ -583,6 +601,7 @@ function renderMovesTable(panel, rows) {
             data-power="${m.power||''}"
             data-accuracy="${m.accuracy||''}"
             data-pp="${m.pp||''}"
+            data-priority="${prio ?? ''}"
             data-target="${escapeHtml(m.target||'')}">
             <td><strong>${escapeHtml(m.move)}</strong></td>
             <td>${typeBadge(m.type)}</td>
@@ -590,6 +609,7 @@ function renderMovesTable(panel, rows) {
             <td>${numVal(m.power)}</td>
             <td>${numVal(m.accuracy)}</td>
             <td>${numVal(m.pp)}</td>
+            <td class="move-priority">${priorityHtml(prio)}</td>
             <td>${escapeHtml(targetLabel(m.target))}</td>
             <td data-move="${escapeHtml(m.move)}" class="move-desc">${moveDescCache.get(m.move) ?? '<span class="desc-loading">…</span>'}</td>
           </tr>`;
@@ -603,7 +623,7 @@ function renderMovesTable(panel, rows) {
     if (!th) return;
     const col = th.dataset.col;
     if (movesSort.col === col) movesSort.dir *= -1;
-    else { movesSort.col = col; movesSort.dir = col === 'move' || col === 'type' || col === 'category' || col === 'target' || col === 'desc' ? 1 : -1; }
+    else { movesSort.col = col; movesSort.dir = ['move','type','category','target','desc'].includes(col) ? 1 : -1; }
     panel.querySelectorAll('thead th').forEach(t => t.className = '');
     th.className = movesSort.dir > 0 ? 'sort-asc' : 'sort-desc';
     const tbody = panel.querySelector('tbody');
@@ -625,8 +645,12 @@ function renderMovesTable(panel, rows) {
 function sortMoveRows(rows) {
   return [...rows].sort((a, b) => {
     const col = movesSort.col;
-    let av = col === 'desc' ? (moveDescCache.get(a.move) || '') : (a[col] || '');
-    let bv = col === 'desc' ? (moveDescCache.get(b.move) || '') : (b[col] || '');
+    let av = col === 'desc' ? (moveDescCache.get(a.move) || '')
+           : col === 'priority' ? (movePriorityCache.has(a.move) ? (movePriorityCache.get(a.move) ?? 0) : '')
+           : (a[col] || '');
+    let bv = col === 'desc' ? (moveDescCache.get(b.move) || '')
+           : col === 'priority' ? (movePriorityCache.has(b.move) ? (movePriorityCache.get(b.move) ?? 0) : '')
+           : (b[col] || '');
     const isNum = !isNaN(Number(av)) && !isNaN(Number(bv)) && av !== '' && bv !== '' && av !== '--' && bv !== '--';
     return isNum ? (Number(av) - Number(bv)) * movesSort.dir : String(av).localeCompare(String(bv)) * movesSort.dir;
   });

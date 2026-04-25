@@ -318,6 +318,10 @@ main { flex: 1; padding: 0; max-width: 100%; width: 100%; margin: 0 auto; overfl
 .cat-physical { color: #f97316; }
 .cat-special { color: #38bdf8; }
 .cat-status { color: #a1a1aa; }
+.move-priority { text-align: center; font-variant-numeric: tabular-nums; }
+.prio-pos { color: #22c55e; font-weight: 700; }
+.prio-neg { color: #ef4444; font-weight: 700; }
+.prio-zero { color: var(--muted); }
 .move-desc { color: var(--muted); font-size: 12px; max-width: 320px; line-height: 1.4; }
 .desc-loading { color: var(--border); font-size: 11px; }
 .moves-table th { cursor: pointer; user-select: none; }

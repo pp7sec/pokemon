@@ -31,20 +31,29 @@ function escapeHtml(s) {
   return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 }
 
-// ---------- Combobox helper ----------
-function setupCombo(key, inputId, listId, getNames, loadIndex, onSelect) {
+// ---------- Combobox helper (multi-select) ----------
+function setupCombo(key, inputId, listId, getNames, loadIndex, onChange) {
   const input = document.getElementById(inputId);
   const list = document.getElementById(listId);
+  const tagsEl = document.getElementById(inputId.replace('Input', 'Tags'));
   if (!input || !list) return;
 
   let loaded = false;
   let allNames = [];
 
+  function renderTags() {
+    if (!tagsEl) return;
+    tagsEl.innerHTML = listState[key].map(v =>
+      `<span class="combo-tag">${escapeHtml(v)}<button class="tag-remove" data-key="${escapeHtml(key)}" data-val="${escapeHtml(v)}" type="button">×</button></span>`
+    ).join('');
+  }
+
   function showList(names) {
-    list.innerHTML = names.slice(0, 150).map(n =>
+    const avail = names.filter(n => !listState[key].includes(n));
+    list.innerHTML = avail.slice(0, 150).map(n =>
       `<li data-value="${escapeHtml(n)}">${escapeHtml(n)}</li>`
     ).join('');
-    list.hidden = names.length === 0;
+    list.hidden = avail.length === 0;
   }
 
   async function open() {
@@ -61,14 +70,9 @@ function setupCombo(key, inputId, listId, getNames, loadIndex, onSelect) {
 
   input.addEventListener('focus', open);
   input.addEventListener('input', async () => {
-    if (!loaded) await loadIndex().then(() => { allNames = getNames(); loaded = true; });
+    if (!loaded) { await loadIndex(); allNames = getNames(); loaded = true; }
     const q = input.value.trim().toLowerCase();
     showList(q ? allNames.filter(n => n.toLowerCase().includes(q)) : allNames);
-    // Clear selection when typing
-    if (listState[key] && input.value !== listState[key]) {
-      listState[key] = '';
-      paintTable();
-    }
   });
 
   list.addEventListener('mousedown', e => {
@@ -76,18 +80,26 @@ function setupCombo(key, inputId, listId, getNames, loadIndex, onSelect) {
     if (!li) return;
     e.preventDefault();
     const val = li.dataset.value;
-    input.value = val;
-    list.hidden = true;
-    // Add/update clear button
-    const wrap = input.parentElement;
-    wrap.querySelector('.combo-clear')?.remove();
-    const btn = document.createElement('button');
-    btn.className = 'combo-clear';
-    btn.dataset.target = key;
-    btn.textContent = '×';
-    wrap.appendChild(btn);
-    onSelect(val);
+    if (!listState[key].includes(val)) {
+      listState[key] = [...listState[key], val];
+      renderTags();
+      onChange(listState[key]);
+    }
+    input.value = '';
+    showList(allNames.filter(n => !listState[key].includes(n)));
+    input.focus();
   });
+
+  if (tagsEl) {
+    tagsEl.addEventListener('click', e => {
+      const btn = e.target.closest('.tag-remove');
+      if (!btn) return;
+      const val = btn.dataset.val;
+      listState[key] = listState[key].filter(v => v !== val);
+      renderTags();
+      onChange(listState[key]);
+    });
+  }
 
   document.addEventListener('click', e => {
     if (!e.target.closest(`#${key}Combo`)) list.hidden = true;
@@ -99,7 +111,14 @@ function setupCombo(key, inputId, listId, getNames, loadIndex, onSelect) {
       const first = list.querySelector('li[data-value]');
       if (first) first.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
     }
+    if (e.key === 'Backspace' && input.value === '' && listState[key].length > 0) {
+      listState[key] = listState[key].slice(0, -1);
+      renderTags();
+      onChange(listState[key]);
+    }
   });
+
+  renderTags();
 }
 
 // ---------- List view ----------
@@ -119,7 +138,7 @@ let _abilityIndex = null;
 
 let listState = {
   query: '', type: '', gen: 0, mega: '',
-  move: '', ability: '',
+  move: [], ability: [],
   sortCol: 'id', sortDir: 1,
   champions: [],
   stats: Object.fromEntries(STAT_FILTERS.map(s => [s.key, { min: '', max: '' }])),
@@ -173,9 +192,9 @@ async function renderList() {
         <div class="sidebar-section">
           <div class="sidebar-label">Move</div>
           <div class="combobox" id="moveCombo">
+            <div class="combo-tags" id="moveTags"></div>
             <div class="combo-wrap">
-              <input class="search combo-input" id="moveInput" placeholder="Filter by move…" autocomplete="off" value="${escapeHtml(listState.move)}" />
-              ${listState.move ? `<button class="combo-clear" data-target="move">×</button>` : ''}
+              <input class="search combo-input" id="moveInput" placeholder="Filter by move…" autocomplete="off" />
             </div>
             <ul class="combo-list" id="moveList" hidden></ul>
           </div>
@@ -183,9 +202,9 @@ async function renderList() {
         <div class="sidebar-section">
           <div class="sidebar-label">Ability</div>
           <div class="combobox" id="abilityCombo">
+            <div class="combo-tags" id="abilityTags"></div>
             <div class="combo-wrap">
-              <input class="search combo-input" id="abilityInput" placeholder="Filter by ability…" autocomplete="off" value="${escapeHtml(listState.ability)}" />
-              ${listState.ability ? `<button class="combo-clear" data-target="ability">×</button>` : ''}
+              <input class="search combo-input" id="abilityInput" placeholder="Filter by ability…" autocomplete="off" />
             </div>
             <ul class="combo-list" id="abilityList" hidden></ul>
           </div>
@@ -241,24 +260,14 @@ async function renderList() {
     document.querySelectorAll('#megaBtns .mega-btn').forEach(b => b.classList.toggle('active', b.dataset.mega === listState.mega));
     paintTable();
   });
-  // Combobox setup
+  // Combobox setup (multi-select)
   setupCombo('move', 'moveInput', 'moveList', getMoveNames,
-    () => loadMoveIndex().then(idx => { _moveIndex = idx; }), v => { listState.move = v; paintTable(); });
+    () => loadMoveIndex().then(idx => { _moveIndex = idx; }), () => paintTable());
   setupCombo('ability', 'abilityInput', 'abilityList', getAbilityNames,
-    () => loadAbilityIndex().then(idx => { _abilityIndex = idx; }), v => { listState.ability = v; paintTable(); });
+    () => loadAbilityIndex().then(idx => { _abilityIndex = idx; }), () => paintTable());
 
-  // Load ability names eagerly (small file); move names lazily on first open
+  // Load ability index eagerly (small file); move index lazily on first open
   loadAbilityIndex().then(idx => { _abilityIndex = idx; });
-
-  document.querySelector('.sidebar').addEventListener('click', e => {
-    const btn = e.target.closest('.combo-clear');
-    if (!btn) return;
-    const key = btn.dataset.target; // 'move' or 'ability'
-    listState[key] = '';
-    document.getElementById(key + 'Input').value = '';
-    btn.remove();
-    paintTable();
-  });
 
   document.querySelector('.sidebar').addEventListener('input', e => {
     const inp = e.target.closest('.stat-input');
@@ -303,15 +312,13 @@ function paintTable() {
       if (f.min !== '' && val < Number(f.min)) return false;
       if (f.max !== '' && val > Number(f.max)) return false;
     }
-    if (listState.move && _moveIndex) {
-      const set = _moveIndex.get(listState.move);
+    if (listState.move.length > 0 && _moveIndex) {
       const base = champBaseKey(c);
-      if (!set || !set.has(base)) return false;
+      if (!listState.move.every(mv => { const s = _moveIndex.get(mv); return s && s.has(base); })) return false;
     }
-    if (listState.ability && _abilityIndex) {
-      const set = _abilityIndex.get(listState.ability);
+    if (listState.ability.length > 0 && _abilityIndex) {
       const base = champBaseKey(c);
-      if (!set || !set.has(base)) return false;
+      if (!listState.ability.every(ab => { const s = _abilityIndex.get(ab); return s && s.has(base); })) return false;
     }
     return true;
   });

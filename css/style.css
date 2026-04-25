@@ -205,13 +205,18 @@ main { flex: 1; padding: 0; max-width: 100%; width: 100%; margin: 0 auto; overfl
 /* Combobox */
 .combobox { position: relative; }
 .combo-wrap { position: relative; display: flex; align-items: center; }
-.combo-wrap .search { padding-right: 28px; }
-.combo-clear {
-  position: absolute; right: 8px; background: none; border: none;
-  color: var(--muted); font-size: 16px; cursor: pointer; padding: 0;
-  line-height: 1;
+.combo-tags { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 4px; }
+.combo-tag {
+  display: inline-flex; align-items: center; gap: 3px;
+  background: var(--accent); color: #fff;
+  border-radius: 5px; padding: 2px 4px 2px 7px; font-size: 11px; font-weight: 600;
+  max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
-.combo-clear:hover { color: var(--text); }
+.tag-remove {
+  background: none; border: none; color: rgba(255,255,255,.75);
+  font-size: 14px; cursor: pointer; padding: 0 2px; line-height: 1; flex-shrink: 0;
+}
+.tag-remove:hover { color: #fff; }
 .combo-list {
   position: absolute; left: 0; right: 0; top: calc(100% + 3px); z-index: 200;
   background: var(--panel-2); border: 1px solid var(--border);

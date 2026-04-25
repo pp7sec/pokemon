@@ -44,10 +44,14 @@ function matchStats(statsRows, champion) {
 
 export async function loadChampions() {
   if (cache.champions) return cache.champions;
-  const [list, stats] = await Promise.all([
+  const [list, stats, missing] = await Promise.all([
     loadCSV('./champion_list.csv'),
     loadCSV('./PokemonStats.csv'),
+    loadCSV('./missing_pokemon_stats.csv'),
   ]);
+  // Build name-based lookup for missing stats
+  const missingByName = new Map(missing.map(r => [r.Name.toLowerCase(), r]));
+
   const champions = list.map(row => {
     const champion = {
       id: Number(row.id),
@@ -55,7 +59,9 @@ export async function loadChampions() {
       is_mega: row.is_mega,
       form: row.form || '',
     };
-    const s = matchStats(stats, champion);
+    // Try main stats first, then fall back to missing_pokemon_stats by name
+    let s = matchStats(stats, champion);
+    if (!s) s = missingByName.get(champion.name.toLowerCase()) || null;
     if (s) {
       champion.stats = {
         total: Number(s.Total),
@@ -68,8 +74,8 @@ export async function loadChampions() {
       };
       champion.type1 = s.Type1;
       champion.type2 = s.Type2 || '';
-      champion.height = Number(s.Height);
-      champion.weight = Number(s.Weight);
+      champion.height = s.Height ? Number(s.Height) : null;
+      champion.weight = s.Weight ? Number(s.Weight) : null;
     }
     champion.slug = slugify(champion.name);
     return champion;

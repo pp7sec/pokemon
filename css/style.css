@@ -169,7 +169,8 @@ main { flex: 1; padding: 0; max-width: 100%; width: 100%; margin: 0 auto; overfl
 .row-sprite { width: 48px; height: 48px; object-fit: contain; flex-shrink: 0; }
 .name-info { display: flex; flex-direction: column; gap: 3px; }
 .row-name { font-weight: 600; font-size: 14px; }
-.row-types { display: flex; gap: 4px; }
+.row-types { display: flex; gap: 4px; flex-wrap: wrap; }
+.row-types .type-badge { padding: 2px 7px; font-size: 10px; }
 .mega-badge {
   padding: 2px 6px; border-radius: 4px; font-size: 10px;
   font-weight: 800; background: linear-gradient(135deg, #f59e0b, #ef4444);

@@ -219,7 +219,7 @@ function paintTable() {
           <img class="row-sprite" loading="lazy" src="${spriteUrl(c.id)}" alt="" onerror="this.style.opacity=0" />
           <div class="name-info">
             <span class="row-name">${escapeHtml(c.name)}</span>
-            <div class="row-types">${typeDot(c.type1)}${typeDot(c.type2)}</div>
+            <div class="row-types">${typeBadge(c.type1)}${typeBadge(c.type2)}</div>
           </div>
           ${c.is_mega === 'Yes' ? '<span class="mega-badge">M</span>' : ''}
         </td>

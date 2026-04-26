@@ -558,16 +558,27 @@ async function fetchMoveData(names) {
 const MOVE_COLS = [
   { key: 'move',     label: 'Move',        str: true },
   { key: 'type',     label: 'Type',        str: true },
-  { key: 'category', label: 'Cat.',        str: true },
+  { key: 'category', label: 'Category',    str: true },
   { key: 'power',    label: 'Power',       str: false },
-  { key: 'accuracy', label: 'Acc.',        str: false },
+  { key: 'accuracy', label: 'Accuracy',    str: false },
   { key: 'pp',       label: 'PP',          str: false },
-  { key: 'priority', label: 'Prio.',       str: false },
+  { key: 'priority', label: 'Priority',    str: false },
   { key: 'target',   label: 'Target',      str: true },
   { key: 'desc',     label: 'Description', str: true },
 ];
 
 let movesSort = { col: 'move', dir: 1 };
+let moveFilters = { type: '', category: '', target: '' };
+
+function applyMoveFilters() {
+  document.querySelectorAll('.moves-table tbody tr').forEach(tr => {
+    const ok =
+      (!moveFilters.type     || tr.dataset.type === moveFilters.type) &&
+      (!moveFilters.category || tr.dataset.category === moveFilters.category) &&
+      (!moveFilters.target   || tr.dataset.target === moveFilters.target);
+    tr.style.display = ok ? '' : 'none';
+  });
+}
 
 async function fillMoves(c) {
   const panel = document.getElementById('movesPanel');
@@ -577,6 +588,7 @@ async function fillMoves(c) {
     const seen = new Map();
     moves.forEach(m => { if (!seen.has(m.move)) seen.set(m.move, m); });
     movesSort = { col: 'move', dir: 1 };
+    moveFilters = { type: '', category: '', target: '' };
     renderMovesTable(panel, [...seen.values()]);
     fetchMoveData([...seen.keys()]);
   } catch { panel.innerHTML = `<h3>Learnable Moves</h3><div class="empty">Failed to load.</div>`; }
@@ -585,7 +597,27 @@ async function fillMoves(c) {
 function renderMovesTable(panel, rows) {
   const sortedRows = sortMoveRows(rows);
 
+  // Collect unique types and targets from this Pokémon's moves
+  const uniqueTypes   = [...new Set(rows.map(m => m.type).filter(Boolean))].sort();
+  const uniqueTargets = [...new Set(rows.map(m => m.target).filter(Boolean))].sort();
+
   panel.innerHTML = `<h3>Learnable Moves (${rows.length})</h3>
+    <div class="move-filters">
+      <select class="move-filter-sel" id="mfType">
+        <option value="">All Types</option>
+        ${uniqueTypes.map(t => `<option value="${t}">${t.charAt(0).toUpperCase()+t.slice(1)}</option>`).join('')}
+      </select>
+      <div class="move-cat-btns">
+        <button class="move-cat-btn active" data-cat="">All</button>
+        <button class="move-cat-btn cat-physical" data-cat="Physical">Physical</button>
+        <button class="move-cat-btn cat-special"  data-cat="Special">Special</button>
+        <button class="move-cat-btn cat-status"   data-cat="Status">Status</button>
+      </div>
+      <select class="move-filter-sel" id="mfTarget">
+        <option value="">All Targets</option>
+        ${uniqueTargets.map(t => `<option value="${t}">${escapeHtml(targetLabel(t))}</option>`).join('')}
+      </select>
+    </div>
     <div class="moves-wrap">
       <table class="moves-table" id="movesTable">
         <thead><tr>
@@ -616,6 +648,21 @@ function renderMovesTable(panel, rows) {
         }).join('')}</tbody>
       </table>
     </div>`;
+
+  // Filter events
+  panel.querySelector('#mfType').addEventListener('change', e => {
+    moveFilters.type = e.target.value; applyMoveFilters();
+  });
+  panel.querySelector('.move-cat-btns').addEventListener('click', e => {
+    const btn = e.target.closest('.move-cat-btn');
+    if (!btn) return;
+    moveFilters.category = btn.dataset.cat;
+    panel.querySelectorAll('.move-cat-btn').forEach(b => b.classList.toggle('active', b.dataset.cat === moveFilters.category));
+    applyMoveFilters();
+  });
+  panel.querySelector('#mfTarget').addEventListener('change', e => {
+    moveFilters.target = e.target.value; applyMoveFilters();
+  });
 
   // Sort on header click — re-sort existing rows in DOM
   panel.querySelector('thead').addEventListener('click', e => {

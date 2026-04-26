@@ -498,20 +498,27 @@ async function fillAbilities(c, smogonEntry) {
   } catch { panel.innerHTML = `<h3>Abilities</h3><div class="empty">Failed to load.</div>`; }
 }
 
+function itemSlug(name) {
+  return name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+}
+
 function fillItems(c, smogonEntry) {
   const panel = document.getElementById('itemsPanel');
   const vgcItems = smogonEntry?.items ?? {};
-  const entries = Object.entries(vgcItems).sort((a, b) => b[1] - a[1]);
+  const entries = Object.entries(vgcItems).sort((a, b) => b[1] - a[1]).slice(0, 5);
   if (!entries.length) {
     panel.innerHTML = `<h3>Common Items</h3><div class="empty">No VGC data.</div>`;
     return;
   }
-  panel.innerHTML = `<h3>Common Items</h3>` + entries.map(([name, pct]) =>
-    `<div class="ability">
+  panel.innerHTML = `<h3>Common Items</h3>` + entries.map(([name, pct]) => {
+    const slug = itemSlug(name);
+    const imgUrl = `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/${slug}.png`;
+    return `<div class="item-row">
+      <img class="item-icon" src="${imgUrl}" alt="${escapeHtml(name)}" onerror="this.style.display='none'">
       <span class="aname">${escapeHtml(name)}</span>
       <span class="vgc-ability-pct">${pct.toFixed(1)}%</span>
-    </div>`
-  ).join('');
+    </div>`;
+  }).join('');
 }
 
 async function fillMatchups(types) {

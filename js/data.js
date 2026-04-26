@@ -100,13 +100,12 @@ function matchStats(statsRows, champion) {
 
 export async function loadChampions() {
   if (cache.champions) return cache.champions;
-  const [list, stats, missing] = await Promise.all([
+  const [list, stats] = await Promise.all([
     loadCSV('./champion_list.csv'),
-    loadCSV('./PokemonStats.csv'),
-    loadCSV('./missing_pokemon_stats.csv'),
+    loadCSV('./PokemonStats.csv'),   // includes former missing_pokemon_stats rows
   ]);
-  // Build name-based lookup for missing stats
-  const missingByName = new Map(missing.map(r => [r.Name.toLowerCase(), r]));
+  // Name-based fallback covers rows with no ID (Megas, regional forms, etc.)
+  const missingByName = new Map(stats.map(r => [r.Name.toLowerCase(), r]));
 
   const champions = list.map(row => {
     const champion = {

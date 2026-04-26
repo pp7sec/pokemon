@@ -1,4 +1,5 @@
 import { loadChampions, getChampion, getAbilities, loadMovesFor, loadTypeChart, spriteUrl, shinyUrl, loadFormSpriteUrl, loadFormSpriteUrls, loadMoveIndex, getMoveNames, loadAbilityIndex, getAbilityNames, champBaseKey } from './data.js';
+import { loadSmogon, getSmogonEntry, smogonMeta } from './smogon.js';
 
 const app = document.getElementById('app');
 
@@ -147,6 +148,7 @@ let listState = {
 const COLS = [
   { key: 'id',     label: '#',       get: c => c.id },
   { key: 'name',   label: 'Pokémon', get: c => c.name },
+  { key: 'vgc',    label: 'VGC%',    get: c => c._vgcUsage ?? -1 },
   { key: 'hp',     label: 'HP',      get: c => c.stats?.hp ?? 0 },
   { key: 'attack', label: 'ATK',     get: c => c.stats?.attack ?? 0 },
   { key: 'defense',label: 'DEF',     get: c => c.stats?.defense ?? 0 },
@@ -158,7 +160,14 @@ const COLS = [
 
 async function renderList() {
   app.innerHTML = `<div class="loading">Loading champions…</div>`;
-  const champions = await loadChampions();
+  const [champions, smogon] = await Promise.all([loadChampions(), loadSmogon()]);
+  // Attach VGC usage to each champion
+  champions.forEach(c => {
+    const entry = getSmogonEntry(c);
+    c._vgcUsage   = entry?.usage   ?? null;
+    c._vgcMoves   = entry?.moves   ?? {};
+    c._vgcAbilities = entry?.abilities ?? {};
+  });
   listState.champions = champions;
 
   app.innerHTML = `
@@ -357,6 +366,7 @@ function paintTable() {
             ${c.is_mega === 'Yes' ? '<span class="mega-badge">M</span>' : ''}
           </a>
         </td>
+        <td class="stat-num vgc-col">${c._vgcUsage != null ? `<span class="vgc-pct">${c._vgcUsage.toFixed(1)}%</span>` : '<span class="muted">—</span>'}</td>
         ${numCell(s.hp)}
         ${numCell(s.attack)}
         ${numCell(s.defense)}
@@ -394,11 +404,12 @@ function paintTable() {
 // ---------- Detail view ----------
 async function renderDetail(slug) {
   app.innerHTML = `<div class="loading">Loading…</div>`;
-  const c = await getChampion(slug);
+  const [c, smogon] = await Promise.all([getChampion(slug), loadSmogon()]);
   if (!c) {
     app.innerHTML = `<div class="empty">Pokémon not found. <a href="#/">Back to list</a></div>`;
     return;
   }
+  const smogonEntry = getSmogonEntry(c);
 
   const types = [c.type1, c.type2].filter(Boolean).map(t => t.toLowerCase());
   const s = c.stats || {};
@@ -427,6 +438,7 @@ async function renderDetail(slug) {
           <span><strong>${c.height ?? '—'}</strong> m</span>
           <span><strong>${c.weight ?? '—'}</strong> kg</span>
           <span><strong>${s.total ?? '—'}</strong> BST</span>
+          ${smogonEntry ? `<span class="vgc-badge" title="VGC usage (${smogonMeta().month ?? ''} ${smogonMeta().format ?? ''})">VGC <strong>${smogonEntry.usage.toFixed(1)}%</strong></span>` : ''}
         </div>
       </div>
       <div class="panel">
@@ -453,9 +465,9 @@ async function renderDetail(slug) {
     if (imgShiny) imgShiny.src = shiny;
   });
 
-  fillAbilities(c);
+  fillAbilities(c, smogonEntry);
   fillMatchups(types);
-  fillMoves(c);
+  fillMoves(c, smogonEntry);
 }
 
 function statRow(label, val, fill, color) {
@@ -466,16 +478,21 @@ function statRow(label, val, fill, color) {
   </div>`;
 }
 
-async function fillAbilities(c) {
+async function fillAbilities(c, smogonEntry) {
   const panel = document.getElementById('abilitiesPanel');
   try {
     const abilities = await getAbilities(c);
     if (!abilities.length) { panel.innerHTML = `<h3>Abilities</h3><div class="empty">No data.</div>`; return; }
-    panel.innerHTML = `<h3>Abilities</h3>` + abilities.map(a => `
-      <div class="ability">
-        <span class="aname">${escapeHtml(a.name)}</span>${a.isHidden ? '<span class="ahidden">Hidden</span>' : ''}
+    const vgcAbilities = smogonEntry?.abilities ?? {};
+    panel.innerHTML = `<h3>Abilities</h3>` + abilities.map(a => {
+      const vgcPct = vgcAbilities[a.name];
+      return `<div class="ability">
+        <span class="aname">${escapeHtml(a.name)}</span>
+        ${a.isHidden ? '<span class="ahidden">Hidden</span>' : ''}
+        ${vgcPct != null ? `<span class="vgc-ability-pct">${vgcPct.toFixed(1)}%</span>` : ''}
         <div class="adesc">${escapeHtml(a.description || '')}</div>
-      </div>`).join('');
+      </div>`;
+    }).join('');
   } catch { panel.innerHTML = `<h3>Abilities</h3><div class="empty">Failed to load.</div>`; }
 }
 
@@ -582,7 +599,7 @@ function applyMoveFilters() {
   });
 }
 
-async function fillMoves(c) {
+async function fillMoves(c, smogonEntry) {
   const panel = document.getElementById('movesPanel');
   try {
     const moves = await loadMovesFor(c);
@@ -591,12 +608,12 @@ async function fillMoves(c) {
     moves.forEach(m => { if (!seen.has(m.move)) seen.set(m.move, m); });
     movesSort = { col: 'move', dir: 1 };
     moveFilters = { type: '', category: '', target: '' };
-    renderMovesTable(panel, [...seen.values()]);
+    renderMovesTable(panel, [...seen.values()], smogonEntry?.moves ?? {});
     fetchMoveData([...seen.keys()]);
   } catch { panel.innerHTML = `<h3>Learnable Moves</h3><div class="empty">Failed to load.</div>`; }
 }
 
-function renderMovesTable(panel, rows) {
+function renderMovesTable(panel, rows, vgcMoves = {}) {
   const sortedRows = sortMoveRows(rows);
 
   // Collect unique types and targets from this Pokémon's moves
@@ -637,7 +654,7 @@ function renderMovesTable(panel, rows) {
             data-pp="${m.pp||''}"
             data-priority="${prio ?? ''}"
             data-target="${escapeHtml(m.target||'')}">
-            <td><strong>${escapeHtml(m.move)}</strong></td>
+            <td><strong>${escapeHtml(m.move)}</strong>${vgcMoves[m.move] != null ? `<span class="vgc-move-pct">${vgcMoves[m.move].toFixed(1)}%</span>` : ''}</td>
             <td>${typeBadge(m.type)}</td>
             <td class="cat-${(m.category||'').toLowerCase()}">${escapeHtml(m.category||'')}</td>
             <td>${numVal(m.power)}</td>

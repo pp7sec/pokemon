@@ -1,0 +1,35 @@
+name: Update Smogon VGC Stats
+
+on:
+  schedule:
+    - cron: '0 14 2 * *'   # 2nd of every month at 14:00 UTC
+  workflow_dispatch:         # manual trigger from GitHub UI
+  push:
+    paths:
+      - '.github/workflows/smogon.yml'   # auto-run once when this file is first pushed
+
+jobs:
+  update-stats:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Fetch Smogon stats
+        run: python scripts/fetch_smogon.py
+
+      - name: Commit if changed
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add smogon_vgc.json
+          git diff --staged --quiet && echo "No changes to commit." || (
+            git commit -m "chore: update Smogon VGC stats $(date +'%Y-%m')"
+            git push
+          )

@@ -327,7 +327,8 @@ main { flex: 1; padding: 0; max-width: 100%; width: 100%; margin: 0 auto; overfl
 
 .item-row { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--border); }
 .item-row:last-child { border-bottom: none; }
-.item-icon { width: 32px; height: 32px; image-rendering: pixelated; flex-shrink: 0; }
+.item-icon-box { width: 36px; height: 36px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
+.item-icon { width: 36px; height: 36px; object-fit: contain; image-rendering: pixelated; }
 .item-row .aname { font-weight: 700; flex: 1; }
 
 .matchup-grid { display: grid; gap: 10px; }

@@ -514,7 +514,7 @@ function fillItems(c, smogonEntry) {
     const slug = itemSlug(name);
     const imgUrl = `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/${slug}.png`;
     return `<div class="item-row">
-      <img class="item-icon" src="${imgUrl}" alt="${escapeHtml(name)}" onerror="this.style.display='none'">
+      <div class="item-icon-box"><img class="item-icon" src="${imgUrl}" alt="${escapeHtml(name)}" onerror="this.style.visibility='hidden'"></div>
       <span class="aname">${escapeHtml(name)}</span>
       <span class="vgc-ability-pct">${pct.toFixed(1)}%</span>
     </div>`;

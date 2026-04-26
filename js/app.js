@@ -529,10 +529,11 @@ async function fillItems(c, smogonEntry) {
   panel.innerHTML = `<h3>Common Items</h3>` + entries.map(([name, pct], i) => {
     const slug = itemSlug(name);
     const imgUrl = `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/${slug}.png`;
-    return `<div class="item-row">
+    return `<div class="ability item-row">
       <div class="item-icon-box"><img class="item-icon" src="${imgUrl}" alt="${escapeHtml(name)}" onerror="this.style.visibility='hidden'"></div>
-      <div class="item-info">
-        <div><span class="aname">${escapeHtml(name)}</span><span class="vgc-ability-pct">${pct.toFixed(1)}%</span></div>
+      <div>
+        <span class="aname">${escapeHtml(name)}</span>
+        <span class="vgc-ability-pct">${pct.toFixed(1)}%</span>
         ${descs[i] ? `<div class="adesc">${escapeHtml(descs[i])}</div>` : ''}
       </div>
     </div>`;

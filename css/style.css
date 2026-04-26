@@ -325,12 +325,9 @@ main { flex: 1; padding: 0; max-width: 100%; width: 100%; margin: 0 auto; overfl
 .ability .ahidden { margin-left: 8px; font-size: 11px; padding: 2px 8px; border-radius: 6px; background: var(--panel-2); color: var(--muted); text-transform: uppercase; }
 .ability .adesc { color: var(--muted); font-size: 13px; margin-top: 4px; }
 
-.item-row { display: flex; align-items: flex-start; gap: 10px; padding: 10px 0; border-bottom: 1px solid var(--border); }
-.item-row:last-child { border-bottom: none; }
-.item-icon-box { width: 36px; height: 36px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; margin-top: 2px; }
-.item-icon { width: 36px; height: 36px; object-fit: contain; image-rendering: pixelated; }
-.item-info { flex: 1; }
-.item-info .adesc { color: var(--muted); font-size: 13px; margin-top: 3px; }
+.ability.item-row { display: flex; align-items: flex-start; gap: 10px; }
+.item-icon-box { width: 32px; height: 32px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; margin-top: 1px; }
+.item-icon { width: 32px; height: 32px; object-fit: contain; image-rendering: pixelated; }
 
 .matchup-grid { display: grid; gap: 10px; }
 .matchup-grid .row { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }

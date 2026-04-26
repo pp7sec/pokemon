@@ -33,3 +33,11 @@ export function getSmogonEntry(champion) {
 export function smogonMeta() {
   return _cache?.meta || {};
 }
+
+/** Format a human-readable source label for the tooltip */
+export function smogonSourceLabel() {
+  const m = smogonMeta();
+  if (!m.source) return '';
+  if (m.source === 'pikalytics') return `Pikalytics · ${m.format ?? ''} · ${m.updated ?? ''}`;
+  return `Smogon · ${m.format ?? ''} · ${m.month ?? ''}`;
+}

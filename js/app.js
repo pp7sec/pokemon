@@ -1,5 +1,5 @@
 import { loadChampions, getChampion, getAbilities, loadMovesFor, loadTypeChart, spriteUrl, shinyUrl, loadFormSpriteUrl, loadFormSpriteUrls, loadMoveIndex, getMoveNames, loadAbilityIndex, getAbilityNames, champBaseKey } from './data.js';
-import { loadSmogon, getSmogonEntry, smogonMeta } from './smogon.js';
+import { loadSmogon, getSmogonEntry, smogonMeta, smogonSourceLabel } from './smogon.js';
 
 const app = document.getElementById('app');
 
@@ -438,7 +438,7 @@ async function renderDetail(slug) {
           <span><strong>${c.height ?? '—'}</strong> m</span>
           <span><strong>${c.weight ?? '—'}</strong> kg</span>
           <span><strong>${s.total ?? '—'}</strong> BST</span>
-          ${smogonEntry ? `<span class="vgc-badge" title="VGC usage (${smogonMeta().month ?? ''} ${smogonMeta().format ?? ''})">VGC <strong>${smogonEntry.usage.toFixed(1)}%</strong></span>` : ''}
+          ${smogonEntry ? `<span class="vgc-badge" title="${smogonSourceLabel()}">VGC <strong>${smogonEntry.usage.toFixed(1)}%</strong></span>` : ''}
         </div>
       </div>
       <div class="panel">

@@ -1,12 +1,12 @@
-name: Update Smogon VGC Stats
+name: Update VGC Stats (Pikalytics)
 
 on:
   schedule:
-    - cron: '0 14 2 * *'   # 2nd of every month at 14:00 UTC
-  workflow_dispatch:         # manual trigger from GitHub UI
+    - cron: '0 14 */3 * *'  # every 3 days at 14:00 UTC
+  workflow_dispatch:          # manual trigger from GitHub UI
   push:
     paths:
-      - '.github/workflows/smogon.yml'   # auto-run once when this file is first pushed
+      - '.github/workflows/smogon.yml'   # auto-run once on first push
 
 jobs:
   update-stats:
@@ -21,8 +21,8 @@ jobs:
         with:
           python-version: '3.12'
 
-      - name: Fetch Smogon stats
-        run: python scripts/fetch_smogon.py
+      - name: Fetch Pikalytics stats
+        run: python scripts/fetch_pikalytics.py
 
       - name: Commit if changed
         run: |
@@ -30,6 +30,6 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add smogon_vgc.json
           git diff --staged --quiet && echo "No changes to commit." || (
-            git commit -m "chore: update Smogon VGC stats $(date +'%Y-%m')"
+            git commit -m "chore: update VGC stats $(date +'%Y-%m-%d')"
             git push
           )

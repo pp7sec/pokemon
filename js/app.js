@@ -467,7 +467,7 @@ async function renderDetail(slug) {
   });
 
   fillAbilities(c, smogonEntry);
-  fillItems(c, smogonEntry);
+  fillItems(c, smogonEntry);   // async, fire-and-forget (updates panel when ready)
   fillMatchups(types);
   fillMoves(c, smogonEntry);
 }
@@ -502,21 +502,39 @@ function itemSlug(name) {
   return name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
 }
 
-function fillItems(c, smogonEntry) {
+const itemDescCache = new Map();
+async function fetchItemDesc(slug) {
+  if (itemDescCache.has(slug)) return itemDescCache.get(slug);
+  try {
+    const res = await fetch(`https://pokeapi.co/api/v2/item/${slug}/`);
+    if (!res.ok) throw new Error();
+    const d = await res.json();
+    const entry = d.effect_entries?.find(e => e.language.name === 'en');
+    const desc = entry?.short_effect ?? '';
+    itemDescCache.set(slug, desc);
+    return desc;
+  } catch { itemDescCache.set(slug, ''); return ''; }
+}
+
+async function fillItems(c, smogonEntry) {
   const panel = document.getElementById('itemsPanel');
   const vgcItems = smogonEntry?.items ?? {};
-  const entries = Object.entries(vgcItems).sort((a, b) => b[1] - a[1]).slice(0, 5);
+  const entries = Object.entries(vgcItems).sort((a, b) => b[1] - a[1]).slice(0, 3);
   if (!entries.length) {
     panel.innerHTML = `<h3>Common Items</h3><div class="empty">No VGC data.</div>`;
     return;
   }
-  panel.innerHTML = `<h3>Common Items</h3>` + entries.map(([name, pct]) => {
+  // Fetch all descriptions in parallel
+  const descs = await Promise.all(entries.map(([name]) => fetchItemDesc(itemSlug(name))));
+  panel.innerHTML = `<h3>Common Items</h3>` + entries.map(([name, pct], i) => {
     const slug = itemSlug(name);
     const imgUrl = `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/${slug}.png`;
     return `<div class="item-row">
       <div class="item-icon-box"><img class="item-icon" src="${imgUrl}" alt="${escapeHtml(name)}" onerror="this.style.visibility='hidden'"></div>
-      <span class="aname">${escapeHtml(name)}</span>
-      <span class="vgc-ability-pct">${pct.toFixed(1)}%</span>
+      <div class="item-info">
+        <div><span class="aname">${escapeHtml(name)}</span><span class="vgc-ability-pct">${pct.toFixed(1)}%</span></div>
+        ${descs[i] ? `<div class="adesc">${escapeHtml(descs[i])}</div>` : ''}
+      </div>
     </div>`;
   }).join('');
 }

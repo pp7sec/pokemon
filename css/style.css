@@ -319,14 +319,14 @@ body.drawer-open { overflow: hidden; }
   .filter-toggle { display: inline-flex; margin-left: auto; }
   body.detail-page .filter-toggle { display: none; }
 
-  .list-layout { flex-direction: column; height: calc(100vh - 47px); }
+  .list-layout { flex-direction: column; height: calc(100dvh - 47px); }
 
   /* Sidebar becomes a slide-in drawer */
   .sidebar {
     position: fixed;
     top: 0; left: 0; bottom: 0;
     width: 86%; max-width: 320px; min-width: 0;
-    height: 100vh;
+    height: 100dvh;
     z-index: 100;
     transform: translateX(-100%);
     transition: transform .25s cubic-bezier(.2,.8,.2,1);

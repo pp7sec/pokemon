@@ -183,7 +183,7 @@ async function renderList() {
             ${ALL_TYPES.map(t => `<button class="type-btn type-${t} ${listState.type === t ? 'active' : ''}" data-type="${t}">${t}</button>`).join('')}
           </div>
         </div>
-        <div class="sidebar-section">
+        <div class="sidebar-section" style="display:none"><!-- Generation filter: hidden, logic kept for future use -->
           <div class="sidebar-label">Generation</div>
           <div class="gen-grid" id="genBtns">
             <button class="gen-btn ${listState.gen === 0 ? 'active' : ''}" data-gen="0">All</button>

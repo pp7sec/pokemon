@@ -452,6 +452,7 @@ async function renderDetail(slug) {
         ${statRow('Total', s.total, v => Math.round((v/800)*100), () => '#6366f1')}
       </div>
       <div class="panel" id="abilitiesPanel"><h3>Abilities</h3><div class="loading">Loading…</div></div>
+      <div class="panel" id="itemsPanel"><h3>Common Items</h3><div class="loading">Loading…</div></div>
       <div class="panel" id="matchupPanel"><h3>Type Matchups (damage taken)</h3><div class="loading">Calculating…</div></div>
       <div class="panel" id="movesPanel" style="grid-column:1/-1"><h3>Learnable Moves</h3><div class="loading">Loading…</div></div>
     </div>
@@ -466,6 +467,7 @@ async function renderDetail(slug) {
   });
 
   fillAbilities(c, smogonEntry);
+  fillItems(c, smogonEntry);
   fillMatchups(types);
   fillMoves(c, smogonEntry);
 }
@@ -494,6 +496,22 @@ async function fillAbilities(c, smogonEntry) {
       </div>`;
     }).join('');
   } catch { panel.innerHTML = `<h3>Abilities</h3><div class="empty">Failed to load.</div>`; }
+}
+
+function fillItems(c, smogonEntry) {
+  const panel = document.getElementById('itemsPanel');
+  const vgcItems = smogonEntry?.items ?? {};
+  const entries = Object.entries(vgcItems).sort((a, b) => b[1] - a[1]);
+  if (!entries.length) {
+    panel.innerHTML = `<h3>Common Items</h3><div class="empty">No VGC data.</div>`;
+    return;
+  }
+  panel.innerHTML = `<h3>Common Items</h3>` + entries.map(([name, pct]) =>
+    `<div class="ability">
+      <span class="aname">${escapeHtml(name)}</span>
+      <span class="vgc-ability-pct">${pct.toFixed(1)}%</span>
+    </div>`
+  ).join('');
 }
 
 async function fillMatchups(types) {

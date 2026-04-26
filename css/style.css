@@ -162,9 +162,10 @@ main { flex: 1; padding: 0; max-width: 100%; width: 100%; margin: 0 auto; overfl
 
 .poke-table td { padding: 6px 14px; }
 .num-col { color: var(--muted); font-size: 12px; white-space: nowrap; }
-.name-col {
+.name-col { position: relative; min-width: 200px; }
+.row-link {
   display: flex; align-items: center; gap: 10px;
-  position: relative; min-width: 200px;
+  color: inherit; text-decoration: none;
 }
 .row-sprite { width: 48px; height: 48px; object-fit: contain; flex-shrink: 0; }
 .name-info { display: flex; flex-direction: column; gap: 3px; }

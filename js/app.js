@@ -348,12 +348,14 @@ function paintTable() {
       <tr data-slug="${c.slug}">
         <td class="num-col">#${String(c.id).padStart(4,'0')}</td>
         <td class="name-col">
-          <img class="row-sprite" loading="lazy" src="${spriteUrl(c.id)}" alt="" onerror="this.style.opacity=0" />
-          <div class="name-info">
-            <span class="row-name">${escapeHtml(c.name)}</span>
-            <div class="row-types">${typeBadge(c.type1)}${typeBadge(c.type2)}</div>
-          </div>
-          ${c.is_mega === 'Yes' ? '<span class="mega-badge">M</span>' : ''}
+          <a class="row-link" href="#/pokemon/${encodeURIComponent(c.slug)}">
+            <img class="row-sprite" loading="lazy" src="${spriteUrl(c.id)}" alt="" onerror="this.style.opacity=0" />
+            <div class="name-info">
+              <span class="row-name">${escapeHtml(c.name)}</span>
+              <div class="row-types">${typeBadge(c.type1)}${typeBadge(c.type2)}</div>
+            </div>
+            ${c.is_mega === 'Yes' ? '<span class="mega-badge">M</span>' : ''}
+          </a>
         </td>
         ${numCell(s.hp)}
         ${numCell(s.attack)}

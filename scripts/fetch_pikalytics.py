@@ -20,7 +20,8 @@ def parse_index(text):
     """Extract Pokemon → usage % from the markdown table in the index page."""
     usage = {}
     skip = {"pokemon", "rank", "usage", "web page", "ai data"}
-    for m in re.finditer(r'\|\s*\d+\s*\|\s*([\w][\w\s\-\'\.]*?)\s*\|\s*([\d.]+)%', text):
+    clean = text.replace("**", "")   # strip bold markers
+    for m in re.finditer(r'\|\s*\d+\s*\|\s*([\w][\w\s\-\'\.]*?)\s*\|\s*([\d.]+)%', clean):
         name = m.group(1).strip()
         pct  = round(float(m.group(2)), 2)
         if name.lower() not in skip:
@@ -28,14 +29,17 @@ def parse_index(text):
     return usage
 
 def extract_pcts(block):
-    """Find all 'Name: XX.XX%' and 'Name (XX.XX%)' in a text block."""
+    """Find all 'Name: XX.XX%' and 'Name (XX.XX%)' in a text block.
+    Strips markdown bold markers (**) before matching."""
+    clean = block.replace("**", "")
     out = {}
-    skip = {"usage", "rank", "total", "bst", "gen", "vgc"}
-    for m in re.finditer(r'([\w][\w\s\-\'\.]*?):\s*([\d]+\.[\d]+)%', block):
+    skip = {"usage", "rank", "total", "bst", "gen", "vgc", "format", "game",
+            "category", "data date", "standard web page", "ai data"}
+    for m in re.finditer(r'([\w][\w\s\-\'\.]*?):\s*([\d]+\.[\d]+)%', clean):
         name = m.group(1).strip()
         if name.lower() not in skip and len(name) > 1:
             out[name] = round(float(m.group(2)), 2)
-    for m in re.finditer(r'([\w][\w\s\-\'\.]+?)\s*\(([\d]+\.[\d]+)%\)', block):
+    for m in re.finditer(r'([\w][\w\s\-\'\.]+?)\s*\(([\d]+\.[\d]+)%\)', clean):
         name = m.group(1).strip()
         if name.lower() not in skip and len(name) > 1:
             out.setdefault(name, round(float(m.group(2)), 2))
@@ -44,7 +48,7 @@ def extract_pcts(block):
 def parse_detail(text):
     """Parse moves / abilities / items sections from markdown detail page."""
     result = {"moves": {}, "abilities": {}, "items": {}}
-    SECTION_MAP = {"move": "moves", "ability": "abilities", "item": "items"}
+    SECTION_MAP = {"move": "moves", "abilit": "abilities", "item": "items"}
     current = None
     buf = []
 
@@ -53,7 +57,7 @@ def parse_detail(text):
             result[current].update(extract_pcts("\n".join(buf)))
 
     for line in text.splitlines():
-        h = re.match(r'^#+\s+(.*)', line.strip())
+        h = re.match(r'^##\s+(.*)', line.strip())
         if h:
             flush()
             header = h.group(1).lower()

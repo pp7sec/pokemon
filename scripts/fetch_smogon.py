@@ -73,10 +73,11 @@ def parse_moveset(text):
             continue
 
         if pokemon and section in ("Abilities", "Moves", "Items") and s.startswith("|"):
-            m = re.match(r"^\|\s*(.*?)\s*\|\s*([\d.]+)%\s*\|", s)
+            # Format: | Move Name 98.879%   |  (space-separated, single column)
+            m = re.match(r"^\|\s+([\w][\w\s\-\'\.]*?)\s+([\d.]+)%", s)
             if m:
                 name, pct = m.group(1).strip(), round(float(m.group(2)), 2)
-                if name:
+                if name and name.lower() != "other":
                     key = {"Abilities": "abilities", "Moves": "moves", "Items": "items"}[section]
                     result[pokemon][key][name] = pct
 

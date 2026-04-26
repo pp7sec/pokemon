@@ -778,10 +778,25 @@ function typeTint(type) {
   return map[type] || 'rgba(255,255,255,.08)';
 }
 
+// ---------- Drawer (mobile filters) ----------
+function initDrawer() {
+  const toggle   = document.getElementById('filterToggle');
+  const backdrop = document.getElementById('drawerBackdrop');
+  if (!toggle || !backdrop) return;
+  const close = () => document.body.classList.remove('drawer-open');
+  toggle.addEventListener('click', () => document.body.classList.toggle('drawer-open'));
+  backdrop.addEventListener('click', close);
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') close(); });
+  window.addEventListener('hashchange', close);
+}
+initDrawer();
+
 // ---------- Router ----------
 function route() {
   const hash = location.hash || '#/';
   const m = hash.match(/^#\/pokemon\/(.+)$/);
+  document.body.classList.toggle('detail-page', !!m);
+  document.body.classList.toggle('list-page', !m);
   if (m) renderDetail(decodeURIComponent(m[1]));
   else renderList();
   window.scrollTo(0, 0);

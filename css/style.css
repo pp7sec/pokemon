@@ -274,9 +274,122 @@ main { flex: 1; padding: 0; max-width: 100%; width: 100%; margin: 0 auto; overfl
   color: #a78bfa; margin-top: 1px;
 }
 
+/* Filter toggle button — mobile only */
+.filter-toggle {
+  display: none;
+  align-items: center; gap: 6px;
+  background: var(--panel-2); color: var(--text);
+  border: 1px solid var(--border); border-radius: 8px;
+  padding: 7px 12px; font-size: 13px; font-weight: 600;
+  cursor: pointer; user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+.filter-toggle:active { background: var(--border); transform: scale(.97); }
+.filter-toggle svg { display: block; }
+
+/* Drawer backdrop — only visible when sidebar is open on mobile */
+.drawer-backdrop {
+  display: none;
+  position: fixed; inset: 0; z-index: 50;
+  background: rgba(0,0,0,.55);
+  backdrop-filter: blur(2px);
+  opacity: 0; transition: opacity .2s;
+}
+body.drawer-open .drawer-backdrop { display: block; opacity: 1; }
+body.drawer-open { overflow: hidden; }
+
+/* ── Tablet ──────────────────────────────────── */
+@media (max-width: 900px) {
+  .top { padding: 12px 16px; gap: 12px; }
+  .logo { font-size: 18px; }
+  .navbar { gap: 8px; }
+  .navbar a { font-size: 13px; padding: 5px 8px; }
+
+  .sidebar { width: 220px; min-width: 220px; }
+  .poke-table { min-width: 580px; font-size: 13px; }
+  .poke-table th, .poke-table td { padding: 8px 10px; }
+  .row-sprite { width: 40px; height: 40px; }
+}
+
+/* ── Mobile ──────────────────────────────────── */
 @media (max-width: 700px) {
-  .list-layout { flex-direction: column; height: auto; }
-  .sidebar { width: 100%; min-width: unset; height: auto; border-right: none; border-bottom: 1px solid var(--border); }
+  .top { padding: 10px 14px; }
+  .logo span:last-child { display: none; }
+  .navbar a { display: none; }
+  .filter-toggle { display: inline-flex; margin-left: auto; }
+  body.detail-page .filter-toggle { display: none; }
+
+  .list-layout { flex-direction: column; height: calc(100vh - 47px); }
+
+  /* Sidebar becomes a slide-in drawer */
+  .sidebar {
+    position: fixed;
+    top: 0; left: 0; bottom: 0;
+    width: 86%; max-width: 320px; min-width: 0;
+    height: 100vh;
+    z-index: 100;
+    transform: translateX(-100%);
+    transition: transform .25s cubic-bezier(.2,.8,.2,1);
+    border-right: 1px solid var(--border); border-bottom: none;
+    box-shadow: 4px 0 24px rgba(0,0,0,.5);
+    padding: 14px 12px 80px;
+  }
+  body.drawer-open .sidebar { transform: translateX(0); }
+
+  /* Bigger touch targets in sidebar */
+  .type-btn { padding: 7px 10px; font-size: 12px; }
+  .gen-btn, .mega-btn { padding: 9px 6px; font-size: 13px; }
+  .clear-stats-btn { padding: 9px; font-size: 13px; }
+  .stat-input { padding: 7px 8px; font-size: 13px; }
+  .search { padding: 10px 12px; font-size: 15px; }
+
+  /* Compact list table on mobile */
+  .table-wrap { flex: 1; overflow: auto; }
+  .poke-table { min-width: 0; width: 100%; font-size: 13px; }
+  .poke-table th, .poke-table td { padding: 10px 8px; }
+  /* Hide stat columns: HP(4), ATK(5), DEF(6), Sp.ATK(7), Sp.DEF(8), SPD(9) */
+  .poke-table th:nth-child(4),  .poke-table td:nth-child(4),
+  .poke-table th:nth-child(5),  .poke-table td:nth-child(5),
+  .poke-table th:nth-child(6),  .poke-table td:nth-child(6),
+  .poke-table th:nth-child(7),  .poke-table td:nth-child(7),
+  .poke-table th:nth-child(8),  .poke-table td:nth-child(8),
+  .poke-table th:nth-child(9),  .poke-table td:nth-child(9) { display: none; }
+
+  .name-col { min-width: 0; }
+  .row-sprite { width: 44px; height: 44px; }
+  .row-name { font-size: 14px; }
+  .row-types .type-badge { padding: 2px 6px; font-size: 9px; }
+  .num-col { font-size: 11px; }
+}
+
+/* ── Detail page mobile ──────────────────────── */
+@media (max-width: 700px) {
+  main { padding: 0; }
+  .detail { gap: 14px; padding: 14px; }
+  .panel { padding: 14px; border-radius: 12px; }
+  .hero { padding: 18px 14px; border-radius: 12px; }
+  .hero .hname { font-size: 22px; }
+  .hart-pair { gap: 10px; }
+  .hart-slot img { width: 150px; max-width: 42vw; }
+  .hero .meta-row { flex-wrap: wrap; gap: 12px; font-size: 12px; }
+  .stat-row { grid-template-columns: 64px 32px 1fr; gap: 8px; }
+
+  /* Move filters reflow nicely */
+  .move-filters { gap: 6px; }
+  .move-filter-sel { font-size: 12px; padding: 6px 8px; }
+  .move-cat-btn { padding: 6px 9px; font-size: 11px; }
+
+  /* Moves table compact: hide PP, Priority, Target, Description */
+  .moves-table { font-size: 12px; }
+  .moves-table th, .moves-table td { padding: 6px 6px; }
+  .moves-table th:nth-child(6), .moves-table td:nth-child(6),  /* PP */
+  .moves-table th:nth-child(7), .moves-table td:nth-child(7),  /* Priority */
+  .moves-table th:nth-child(8), .moves-table td:nth-child(8),  /* Target */
+  .moves-table th:nth-child(9), .moves-table td:nth-child(9) { display: none; }
+
+  .matchup-grid .row .lab { width: 50px; font-size: 11px; }
+
+  .back { padding: 6px 10px; margin: 14px 14px 0; display: inline-flex; }
 }
 
 .type-badge {

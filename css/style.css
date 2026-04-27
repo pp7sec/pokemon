@@ -482,7 +482,7 @@ body.drawer-open { overflow: hidden; }
 
 .moves-table { width: 100%; border-collapse: collapse; font-size: 13px; }
 .moves-table th, .moves-table td { padding: 8px 10px; border-bottom: 1px solid var(--border); text-align: left; }
-.moves-table th { color: var(--muted); font-weight: 600; text-transform: uppercase; letter-spacing: .5px; font-size: 11px; position: sticky; top: 0; background: var(--panel); }
+.moves-table th { color: var(--muted); font-weight: 600; text-transform: uppercase; letter-spacing: .5px; font-size: 11px; position: sticky; top: 0; z-index: 1; background: var(--panel); }
 .moves-wrap { max-height: 500px; overflow: auto; -webkit-overflow-scrolling: touch; }
 .cat-physical { color: #f97316; }
 .cat-special { color: #38bdf8; }

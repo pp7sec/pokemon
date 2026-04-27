@@ -18,8 +18,8 @@ export function shinyUrl(id) {
   return `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/shiny/${id}.png`;
 }
 
-const REGIONAL_SUFFIX = { alolan:'alolan', galarian:'galar', hisuian:'hisui', paldean:'paldea' };
-const SLUG_OVERRIDES = { 'tauros-paldea':'tauros-paldea-combat' };
+const REGIONAL_SUFFIX = { alolan:'alola', galarian:'galar', hisuian:'hisui', paldean:'paldea' };
+const SLUG_OVERRIDES = { 'tauros-paldea':'tauros-paldea-combat-breed' };
 
 function champToPokeSlug({ name, is_mega, form }) {
   if (is_mega !== 'Yes' && !form) return null;

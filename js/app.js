@@ -803,5 +803,6 @@ function route() {
 }
 
 window.addEventListener('hashchange', route);
-window.addEventListener('load', route);
+// Module scripts are deferred, so DOM is ready when this runs.
+// No need for a separate 'load' listener — calling route() once is enough.
 route();

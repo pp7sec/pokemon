@@ -48,7 +48,11 @@ a { color: inherit; text-decoration: none; }
 .navbar a { color: var(--muted); font-size: 14px; padding: 6px 10px; border-radius: 8px; }
 .navbar a:hover { color: var(--text); background: var(--panel); }
 
-main { flex: 1; padding: 0; max-width: 100%; width: 100%; margin: 0 auto; overflow: hidden; }
+main { flex: 1; padding: 0; max-width: 100%; width: 100%; margin: 0 auto; }
+/* List page constrains itself with .list-layout fixed height; only clip then.
+   Detail page must allow body to grow & scroll naturally. */
+body.list-page main { overflow: hidden; }
+body { overflow-x: hidden; }   /* prevent any accidental horizontal page scroll */
 
 .loading { padding: 48px; text-align: center; color: var(--muted); }
 
@@ -369,8 +373,9 @@ body.drawer-open { overflow: hidden; }
   .panel { padding: 14px; border-radius: 12px; }
   .hero { padding: 18px 14px; border-radius: 12px; }
   .hero .hname { font-size: 22px; }
-  .hart-pair { gap: 10px; }
-  .hart-slot img { width: 150px; max-width: 42vw; }
+  .hart-pair { gap: 10px; max-width: 100%; }
+  .hart-slot { flex: 1 1 0; min-width: 0; max-width: calc(50% - 5px); }
+  .hart-slot img { width: 100%; max-width: 150px; height: auto; }
   .hero .meta-row { flex-wrap: wrap; gap: 12px; font-size: 12px; }
   .stat-row { grid-template-columns: 64px 32px 1fr; gap: 8px; }
 
@@ -423,6 +428,8 @@ body.drawer-open { overflow: hidden; }
 .panel {
   background: var(--panel); border: 1px solid var(--border);
   border-radius: 16px; padding: 20px;
+  min-width: 0;          /* let panel shrink in grid */
+  overflow: hidden;      /* clip any wide child to panel bounds */
 }
 .panel h3 { margin: 0 0 14px; font-size: 15px; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); }
 
@@ -471,7 +478,7 @@ body.drawer-open { overflow: hidden; }
 .moves-table { width: 100%; border-collapse: collapse; font-size: 13px; }
 .moves-table th, .moves-table td { padding: 8px 10px; border-bottom: 1px solid var(--border); text-align: left; }
 .moves-table th { color: var(--muted); font-weight: 600; text-transform: uppercase; letter-spacing: .5px; font-size: 11px; position: sticky; top: 0; background: var(--panel); }
-.moves-wrap { max-height: 500px; overflow: auto; }
+.moves-wrap { max-height: 500px; overflow: auto; -webkit-overflow-scrolling: touch; }
 .cat-physical { color: #f97316; }
 .cat-special { color: #38bdf8; }
 .cat-status { color: #a1a1aa; }

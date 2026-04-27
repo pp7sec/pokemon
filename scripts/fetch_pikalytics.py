@@ -9,7 +9,7 @@ from datetime import datetime, timezone
 
 FORMAT = "championstournaments"
 BASE   = f"https://pikalytics.com/ai/pokedex/{FORMAT}"
-UA     = "competitive-pokemon-stats/1.0 (+https://github.com/pp7sec/pokemon)"
+UA     = "competitive-pokemon-stats/1.0 (+https://github.com/pp7sec/pokemon-champion)"
 
 def fetch(url, timeout=30):
     req = urllib.request.Request(url, headers={"User-Agent": UA})

@@ -166,7 +166,9 @@ export async function loadAbilities() {
 export async function getAbilities(champion) {
   const all = await loadAbilities();
   // try full name slug first
+  const pokeSlug = champToPokeSlug(champion);
   const candidates = [
+    ...(pokeSlug ? [pokeSlug] : []),
     champion.name.toLowerCase().replace(/\s+/g, '-'),
     champion.name.toLowerCase().replace(/\s+/g, ''),
     champion.name.toLowerCase().split(' ').pop(),

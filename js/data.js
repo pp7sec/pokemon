@@ -116,6 +116,10 @@ export async function loadChampions() {
     };
     // Try main stats first, then fall back to missing_pokemon_stats by name
     let s = matchStats(stats, champion);
+    // If mega but matched a non-mega row, prefer the name-based mega entry
+    if (champion.is_mega === 'Yes' && s && !/\bmega\b/i.test(s.Name)) {
+      s = missingByName.get(champion.name.toLowerCase()) || s;
+    }
     if (!s) s = missingByName.get(champion.name.toLowerCase()) || null;
     if (s) {
       champion.stats = {
